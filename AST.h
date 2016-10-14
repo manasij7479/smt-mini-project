@@ -98,7 +98,7 @@ public:
     : Op(Op), Left(Left), Right(Right), isBool(isBool) {}
   Expr *Replace(Var *Variable, Expr *Expression) {
     return new BinaryExpr(Op, Left->Replace(Variable, Expression),
-			  Right->Replace(Variable, Expression), isBool);
+        Right->Replace(Variable, Expression), isBool);
   }
   Expr *Copy() {
     return new BinaryExpr(Op, Left, Right, isBool);

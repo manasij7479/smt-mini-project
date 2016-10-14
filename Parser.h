@@ -107,7 +107,7 @@ Result ParseBinaryExpr(Stream in) {
   if (!Left.Ptr)
     return ret;
   in = Left.Str;
-  std::vector<std::string> choices {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"};
+  std::vector<std::string> choices {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">"};
   std::string Op = in.fixed(choices);
   if (Op == "")
     return ret;
@@ -128,7 +128,7 @@ Result ParseUnaryExpr(Stream in) {
   Result ret(nullptr, Copy, "");
   if (!in.fixed("("))
     return ret;
-  std::vector<std::string> choices {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"};
+  std::vector<std::string> choices {"-", "!"};
   std::string Op = in.fixed(choices);
   if (Op == "")
     return ret;
