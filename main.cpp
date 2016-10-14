@@ -29,14 +29,16 @@ int main(int argc, char **argv) {
   }
   
   Stream in(test.c_str(), 0, test.length()-1);
-  Result R = ParseStmt(in);
-  if (R.Ptr) {
-    std::cout << "FINAL\n";
-    R.getAs<Stmt>()->dump(std::cout);
+  Result R = ParseProgram(in);
+  if (!R.Ptr) {
+    std::cout << "FAIL\n";
+    return 1;
   }
   
-  Expr *Post = new BinaryExpr(">", new Var("y"), new IntConst(5), true);
-  auto WP = R.getAs<Stmt>()->WeakestPrecondition(Post);
+  Program *Prog = R.getAs<Program>();
+  Prog->dump(std::cout);
+  Expr *Post = Prog->getPost();
+  auto WP = Prog->getStatament()->WeakestPrecondition(Post);
   WP->dump(std::cout);
   
   CVC4::ExprManager em;

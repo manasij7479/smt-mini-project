@@ -276,5 +276,37 @@ Result ParseStmt(Stream in) {
   return ret;
 }
 
+Result ParseProgram(Stream in) {
+  Stream Copy = in;
+  Result ret(nullptr, Copy, "");
+  if (!in.fixed("pre:"))
+    return ret;
+  
+  Result Assume = ParseExpr(in);
+  if (!Assume.Ptr)
+    return ret;
+  in = Assume.Str;
+  
+  Result Statement = ParseStmt(in);
+  if (!Statement.Ptr)
+    return ret;
+  in = Statement.Str;
+  
+  if (!in.fixed("post:"))
+    return ret;
+  
+  Result Assert = ParseExpr(in);
+  if (!Assert.Ptr)
+    return ret;
+  in = Assert.Str;
+  
+  Program *result = new Program(Assume.getAs<Expr>(), Statement.getAs<Stmt>(), Assert.getAs<Expr>());
+  
+//   result->dump(std::cout);
+  ret.Ptr = result;
+  ret.Str = in;
+  return ret;
+}
+
 }
 #endif

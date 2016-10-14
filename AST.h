@@ -213,13 +213,33 @@ private:
   Stmt *FalseStmt;
 };
 
-// class Program {
-// public:
-// private:
-//   Expr *Pre;
-//   Stmt *Statement;
-//   Expr *Post;
-// };
+class Program {
+public:
+  Program (Expr *Pre, Stmt *Statement, Expr *Post)
+    : Pre(Pre), Statement(Statement), Post(Post) {}
+  Stmt *getStatament() {
+    return Statement;
+  }
+  Expr *getPre() {
+    return Pre;
+  }
+  Expr *getPost() {
+    return Post;
+  }
+  void dump(std::ostream &Out) {
+    Out << "pre:\n";
+    Pre->dump(Out);
+    Out << "\nstmt:\n";
+    Statement->dump(Out);
+    Out << "post:\n";
+    Post->dump(Out);
+    Out << std::endl;
+  }
+private:
+  Expr *Pre;
+  Stmt *Statement;
+  Expr *Post;
+};
 
 }
 #endif
