@@ -76,7 +76,7 @@ Result ParseVar(Stream in) {
   if (Name != "") {
     Ptr = new Var(Name);
   }
-  return Result(Ptr, in, "Expected Variable");
+  return Result(Ptr, in, "");
 }
 Result ParseIntConst(Stream in) {
   std::string Name = in.loop([](char c){return std::isdigit(c);});
@@ -84,8 +84,20 @@ Result ParseIntConst(Stream in) {
   if (Name != "") {
     Ptr = new IntConst(std::stoi(Name));
   }
-  return Result(Ptr, in, "Expected Integer Constant");
+  return Result(Ptr, in, "");
 }
+
+Result ParseBoolConst(Stream in) {
+  std::vector<std::string> choices {"true", "false"};
+  std::string read = in.fixed(choices);
+  BoolConst *Ptr = nullptr;
+  if (read == "true")
+    Ptr = new BoolConst(true);
+  else if (read == "false")
+    Ptr = new BoolConst(false);
+  return Result(Ptr, in, "");
+}
+
 Result ParseBinaryExpr(Stream in) {
   Stream Copy = in;
   Result ret(nullptr, Copy, "");
@@ -142,6 +154,9 @@ Result ParseExpr(Stream in) {
     if (ue.Ptr)
       return ue;
   
+  Result bc = ParseBoolConst(in);
+  if (bc.Ptr)
+    return bc;  
   Result var = ParseVar(in);
   if (var.Ptr)
     return var;

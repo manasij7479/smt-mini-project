@@ -67,6 +67,28 @@ private:
   int Value;
 };
 
+class BoolConst : public Expr {
+public:
+  BoolConst(bool Value) : Value(Value) {}
+  Expr *Replace(Var *Variable, Expr *Expression) {
+    return this;
+  }
+  Expr *Copy() {
+    return this;
+  }
+  void dump(std::ostream &Out) {
+    Out << (Value ? "true" : "false");
+  }
+  int getValue() {
+    return Value;
+  }
+  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+    return EM.mkConst(Value);
+  }
+private:
+  bool Value;
+};
+
 class BinaryExpr : public Expr {
 public:
   BinaryExpr(std::string Op, Expr *Left, Expr *Right, bool isBool = false) 

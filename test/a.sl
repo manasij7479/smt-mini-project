@@ -1,4 +1,4 @@
-pre: (2>1)
+pre: true
 {
   if (x>0) {
     y = z;
