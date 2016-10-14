@@ -44,12 +44,14 @@ int main(int argc, char **argv) {
   CVC4::ExprManager em;
   CVC4::SmtEngine smt(&em);  
   
-  CVC4::Expr WeakestPreCond  = WP->Translate(em);
+  std::unordered_map<std::string, CVC4::Expr> SymbolTable;
   
-  CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em);
+  CVC4::Expr WeakestPreCond  = WP->Translate(em, SymbolTable);
   
-  CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, WeakestPreCond, GivenPrecondition);
+  CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
   
+  CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
+//   
   std::cout << "Weakest Precondition : " << WeakestPreCond.toString() << std::endl;
   std::cout << "TEST : " << Test.toString() << std::endl;
   std::cout << "Result : " << smt.query(Test) << std::endl;

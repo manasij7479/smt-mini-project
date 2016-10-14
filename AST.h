@@ -8,7 +8,6 @@
 namespace mm {
 class Var;
 class Expr;
-// std::unordered_map<std::string, CVC4::Expr> VARS;
 
 class Expr {
 public:
@@ -16,7 +15,8 @@ public:
   /// Create a new Expression with ``Variable`` replaced with ``Expression``.
   virtual Expr *Copy() = 0;
   virtual void dump(std::ostream &Out) {}
-  virtual CVC4::Expr Translate(CVC4::ExprManager &EM) = 0;
+  virtual CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) = 0;
+  
 };
 
 class Var : public Expr {
@@ -38,8 +38,11 @@ public:
   std::string getName() {
     return Name;
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM) {
-    return EM.mkVar(Name, EM.integerType());
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+    if (VARS.find(Name) == VARS.end()) {
+      VARS[Name] = EM.mkVar(Name, EM.integerType());
+    }
+    return VARS[Name];
   }
 private:
   std::string Name;
@@ -60,7 +63,7 @@ public:
   int getValue() {
     return Value;
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
     return EM.mkConst(CVC4::Rational(Value));
   }
 private:
@@ -82,7 +85,7 @@ public:
   int getValue() {
     return Value;
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
     return EM.mkConst(Value);
   }
 private:
@@ -107,7 +110,7 @@ public:
     Right->dump(Out);
     Out << ')';
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
 //     {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"}
     std::unordered_map<std::string, CVC4::Kind> Map = {
       {"+", CVC4::Kind::PLUS},
@@ -125,7 +128,7 @@ public:
       {"!", CVC4::Kind::NOT},
     };
     
-    return EM.mkExpr(Map[Op], Left->Translate(EM), Right->Translate(EM));
+    return EM.mkExpr(Map[Op], Left->Translate(EM, VARS), Right->Translate(EM, VARS));
   }
 private:
   std::string Op;
@@ -150,13 +153,13 @@ public:
     SubExpr->dump(Out);
     Out << ')';
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
 //     {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"}
     std::unordered_map<std::string, CVC4::Kind> Map = {
       {"-", CVC4::Kind::UMINUS},
       {"!", CVC4::Kind::NOT}
     };
-    return EM.mkExpr(Map[Op], SubExpr->Translate(EM));
+    return EM.mkExpr(Map[Op], SubExpr->Translate(EM, VARS));
   }
 private:
   std::string Op;
