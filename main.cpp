@@ -1,5 +1,5 @@
 // #include <iostream>
-// #include <cvc4/cvc4.h>
+#include <cvc4/cvc4.h>
 // using namespace CVC4;
 // int main() {
 //   ExprManager em;
@@ -36,7 +36,12 @@ int main(int argc, char **argv) {
   }
   
   Expr *Post = new BinaryExpr(">", new Var("y"), new IntConst(5), true);
-  R.getAs<Stmt>()->WeakestPrecondition(Post)->dump(std::cout);
+  auto WP = R.getAs<Stmt>()->WeakestPrecondition(Post);
+  WP->dump(std::cout);
   
+  CVC4::ExprManager em;
+  CVC4::SmtEngine smt(&em);  
+  
+  std::cout << std::endl << WP->Translate(em).toString();
   
 }

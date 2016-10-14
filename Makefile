@@ -1,6 +1,6 @@
 CXX:= g++
-CXXFLAGS :=-c -Wall -std=c++11 -g
-LDFLAGS := -lpthread -lcvc4
+CXXFLAGS :=-c -Wall -std=c++11 -g -Wno-deprecated
+LDFLAGS := -lpthread -lcvc4 -lgmp
 # Sources are all .cpp files in this dir
 SRCS :=         $(wildcard *.cpp)
 # Object files are everything in $SRCS, with the .cpp replaced by a .o

@@ -3,16 +3,20 @@
 #include <vector>
 #include <string>
 #include <ostream>
+#include <unordered_map>
+#include <cvc4/cvc4.h>
 namespace mm {
 class Var;
-class Expression;
+class Expr;
+// std::unordered_map<std::string, CVC4::Expr> VARS;
+
 class Expr {
 public:
   virtual Expr *Replace(Var *Variable, Expr *Expression) = 0;
   /// Create a new Expression with ``Variable`` replaced with ``Expression``.
   virtual Expr *Copy() = 0;
   virtual void dump(std::ostream &Out) {}
-  
+  virtual CVC4::Expr Translate(CVC4::ExprManager &EM) = 0;
 };
 
 class Var : public Expr {
@@ -34,6 +38,9 @@ public:
   std::string getName() {
     return Name;
   }
+  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+    return EM.mkVar(Name, EM.integerType());
+  }
 private:
   std::string Name;
   // int ID; // Will be needed if scopes are introduced.
@@ -52,6 +59,9 @@ public:
   }
   int getValue() {
     return Value;
+  }
+  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+    return EM.mkConst(CVC4::Rational(Value));
   }
 private:
   int Value;
@@ -75,6 +85,26 @@ public:
     Right->dump(Out);
     Out << ')';
   }
+  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+//     {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"}
+    std::unordered_map<std::string, CVC4::Kind> Map = {
+      {"+", CVC4::Kind::PLUS},
+      {"-", CVC4::Kind::MINUS},
+      {"->", CVC4::Kind::IMPLIES},
+      {"*", CVC4::Kind::MULT},
+      {"/", CVC4::Kind::DIVISION},
+      {"&&", CVC4::Kind::AND},
+      {"||", CVC4::Kind::OR},
+      {"==", CVC4::Kind::EQUAL},
+      {"<=", CVC4::Kind::LEQ},
+      {">=", CVC4::Kind::GEQ},
+      {"<", CVC4::Kind::LT},
+      {">", CVC4::Kind::GT},
+      {"!", CVC4::Kind::NOT},
+    };
+    
+    return EM.mkExpr(Map[Op], Left->Translate(EM), Right->Translate(EM));
+  }
 private:
   std::string Op;
   Expr *Left;
@@ -97,6 +127,14 @@ public:
     Out << Op;
     SubExpr->dump(Out);
     Out << ')';
+  }
+  CVC4::Expr Translate(CVC4::ExprManager &EM) {
+//     {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"}
+    std::unordered_map<std::string, CVC4::Kind> Map = {
+      {"-", CVC4::Kind::UMINUS},
+      {"!", CVC4::Kind::NOT}
+    };
+    return EM.mkExpr(Map[Op], SubExpr->Translate(EM));
   }
 private:
   std::string Op;
