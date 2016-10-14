@@ -109,12 +109,19 @@ private:
 class Stmt {
 public:
   virtual Expr *WeakestPrecondition(Expr *Post) = 0;
+  virtual void dump(std::ostream &Out) {}
 };
 class AssignStmt : public  Stmt {
 public:
   AssignStmt(Var *LValue, Expr *RValue) : LValue(LValue), RValue(RValue) {}
   Expr *WeakestPrecondition(Expr *Post) {
     return Post->Replace(LValue, RValue);
+  }
+  void dump(std::ostream &Out) {
+    LValue->dump(Out);
+    Out << " = ";
+    RValue->dump(Out);
+    Out << " ;\n";
   }
 private:
   Var *LValue;
@@ -132,6 +139,13 @@ public:
     }
     return Cur;
   }
+  void dump(std::ostream &Out) {
+    Out << "{\n";
+    for (auto *Simple : Statements) {
+      Simple->dump(Out);
+    }
+    Out << "}\n";
+  }
 private:
   std::vector<Stmt *> Statements;
 };
@@ -145,6 +159,15 @@ public:
       new BinaryExpr("->", Condition, TrueStmt->WeakestPrecondition(Post)),
       new BinaryExpr("->", new UnaryExpr("!", Condition), 
       FalseStmt->WeakestPrecondition(Post)), true);
+  }
+  void dump(std::ostream &Out) {
+    Out << "if ( ";
+    Condition->dump(Out);
+    Out << " ) { \n";
+    TrueStmt->dump(Out);
+    Out << "} else {\n";
+    FalseStmt->dump(Out);
+    Out << "}\n";
   }
 private:
   Expr *Condition;
