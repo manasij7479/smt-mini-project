@@ -36,14 +36,21 @@ int main(int argc, char **argv) {
   }
   
   Program *Prog = R.getAs<Program>();
-  Prog->dump(std::cout);
+//   Prog->dump(std::cout);
   Expr *Post = Prog->getPost();
   auto WP = Prog->getStatament()->WeakestPrecondition(Post);
-  WP->dump(std::cout);
+//   WP->dump(std::cout);
   
   CVC4::ExprManager em;
   CVC4::SmtEngine smt(&em);  
   
-  std::cout << std::endl << WP->Translate(em).toString();
+  CVC4::Expr WeakestPreCond  = WP->Translate(em);
   
+  CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em);
+  
+  CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, WeakestPreCond, GivenPrecondition);
+  
+  std::cout << "Weakest Precondition : " << WeakestPreCond.toString() << std::endl;
+  std::cout << "TEST : " << Test.toString() << std::endl;
+  std::cout << "Result : " << smt.query(Test) << std::endl;
 }
