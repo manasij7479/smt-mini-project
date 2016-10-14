@@ -10,11 +10,19 @@
 // }
 #include <iostream>
 #include "AST.h"
+#include "Parser.h"
 using namespace mm;
 int main() {
-  Expr *Post = new BinaryExpr("<", new Var("b"), new IntConst(10), true);
-  Stmt *Prog = new AssignStmt(new Var("b"), 
-			      new BinaryExpr("+", new Var("a"), new IntConst(1)));
-  auto *Result = Prog->WeakestPrecondition(Post);
-  Result->dump(std::cout);
+//   Expr *Post = new BinaryExpr("<", new Var("b"), new IntConst(10), true);
+//   Stmt *Prog = new AssignStmt(new Var("b"), 
+// 			      new BinaryExpr("+", new Var("a"), new IntConst(1)));
+//   auto *Result = Prog->WeakestPrecondition(Post);
+//   Result->dump(std::cout);
+  
+  std::string test = "(x^1)";
+  Stream in(test.c_str(), 0, test.length()-1);
+  Result R = ParseBinaryExpr(in);
+  if (R.Ptr) {
+    R.getAs<BinaryExpr>()->dump(std::cout);
+  }
 }

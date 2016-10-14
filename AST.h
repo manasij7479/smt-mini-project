@@ -4,7 +4,6 @@
 #include <string>
 #include <ostream>
 namespace mm {
-
 class Var;
 class Expression;
 class Expr {
@@ -14,9 +13,6 @@ public:
   virtual Expr *Copy() = 0;
   virtual void dump(std::ostream &Out) {}
   
-//   static Expr *parse(Stream &Input) {
-//     return nullptr; // TODO
-//   }
 };
 
 class Var : public Expr {
@@ -35,6 +31,9 @@ public:
   void dump(std::ostream &Out) {
     Out << Name;
   }
+  std::string getName() {
+    return Name;
+  }
 private:
   std::string Name;
   // int ID; // Will be needed if scopes are introduced.
@@ -50,6 +49,9 @@ public:
   }
   void dump(std::ostream &Out) {
     Out << Value;
+  }
+  int getValue() {
+    return Value;
   }
 private:
   int Value;
