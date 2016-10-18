@@ -29,9 +29,9 @@ int main(int argc, char **argv) {
   Expr *Post = Prog->getPost();
   auto WP = Prog->getStatament()->WeakestPrecondition(Post);
 
-  
   CVC4::ExprManager em;
-  CVC4::SmtEngine smt(&em);  
+  CVC4::SmtEngine smt(&em);
+  smt.setOption("produce-models", true);
   
   std::unordered_map<std::string, CVC4::Expr> SymbolTable;
   
@@ -43,5 +43,18 @@ int main(int argc, char **argv) {
    
   std::cout << "Weakest Precondition : " << WeakestPreCond.toString() << std::endl;
   std::cout << "TEST : " << Test.toString() << std::endl;
-  std::cout << "Result : " << smt.query(Test) << std::endl;
+  auto Result = smt.query(Test);
+  std::cout << "Result : " << Result << std::endl;
+
+  if (!Result.isValid()) {
+    std::cout << "Model : \n";
+    std::set<std::string> Vars;
+    Prog->getPre()->forAllVars([&](std::string VarName){
+      Vars.insert(VarName);
+    });
+    for (auto VarName : Vars) {
+      std::cout << VarName << '\t' <<
+        smt.getValue(SymbolTable[VarName]).toString() << std::endl;
+    }
+  }
 }

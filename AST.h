@@ -5,6 +5,8 @@
 #include <ostream>
 #include <unordered_map>
 #include <cvc4/cvc4.h>
+#include <functional>
+
 namespace mm {
 class Var;
 class Expr;
@@ -16,7 +18,7 @@ public:
   virtual Expr *Copy() = 0;
   virtual void dump(std::ostream &Out) {}
   virtual CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) = 0;
-  
+  virtual void forAllVars(std::function<void(std::string)> F) {}
 };
 
 class Var : public Expr {
@@ -43,6 +45,9 @@ public:
       VARS[Name] = EM.mkVar(Name, EM.integerType());
     }
     return VARS[Name];
+  }
+  void forAllVars(std::function<void(std::string)> F) {
+    F(Name);
   }
 private:
   std::string Name;
@@ -111,7 +116,6 @@ public:
     Out << ')';
   }
   CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
-//     {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"}
     std::unordered_map<std::string, CVC4::Kind> Map = {
       {"+", CVC4::Kind::PLUS},
       {"-", CVC4::Kind::MINUS},
@@ -129,6 +133,10 @@ public:
     };
     
     return EM.mkExpr(Map[Op], Left->Translate(EM, VARS), Right->Translate(EM, VARS));
+  }
+  void forAllVars(std::function<void(std::string)> F) {
+    Left->forAllVars(F);
+    Right->forAllVars(F);
   }
 private:
   std::string Op;
@@ -160,6 +168,9 @@ public:
       {"!", CVC4::Kind::NOT}
     };
     return EM.mkExpr(Map[Op], SubExpr->Translate(EM, VARS));
+  }
+  void forAllVars(std::function<void(std::string)> F) {
+    SubExpr->forAllVars(F);
   }
 private:
   std::string Op;
