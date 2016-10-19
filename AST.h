@@ -20,7 +20,6 @@ public:
   virtual CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) = 0;
   virtual void forAllVars(std::function<void(std::string)> F) {}
 };
-
 class Var : public Expr {
 public:
   Var(std::string Name) : Name(Name) {} 
@@ -31,14 +30,26 @@ public:
       return this->Copy();
     }
   }
-  Expr *Copy() {
-    return new Var(Name);
-  }
+
   void dump(std::ostream &Out) {
     Out << Name;
   }
   std::string getName() {
     return Name;
+  }
+  
+  void forAllVars(std::function<void(std::string)> F) {
+    F(Name);
+  }
+protected:
+  std::string Name;
+  // int ID; // Will be needed if scopes are introduced.
+};
+class IntVar : public Var {
+public:
+  IntVar(std::string Name) : Var(Name) {}
+  Expr *Copy() {
+    return new IntVar(Name);
   }
   CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
     if (VARS.find(Name) == VARS.end()) {
@@ -46,22 +57,35 @@ public:
     }
     return VARS[Name];
   }
-  void forAllVars(std::function<void(std::string)> F) {
-    F(Name);
-  }
-private:
-  std::string Name;
-  // int ID; // Will be needed if scopes are introduced.
 };
-class IntConst : public Expr {
+class BVVar : public Var {
 public:
-  IntConst(int Value) : Value(Value) {}
+  BVVar(std::string Name) : Var(Name) {}
+  Expr *Copy() {
+    return new BVVar(Name);
+  }
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+    if (VARS.find(Name) == VARS.end()) {
+      VARS[Name] = EM.mkVar(Name, EM.mkBitVectorType(32));
+    }
+    return VARS[Name];
+  }
+};
+
+class Const : public Expr {
+public:
   Expr *Replace(Var *Variable, Expr *Expression) {
     return this;
   }
   Expr *Copy() {
     return this;
-  }
+  }  
+};
+
+class IntConst : public Const {
+public:
+  IntConst(int Value) : Value(Value) {}
+
   void dump(std::ostream &Out) {
     Out << Value;
   }
@@ -75,15 +99,25 @@ private:
   int Value;
 };
 
-class BoolConst : public Expr {
+class BVConst : public Const {
+public:
+  BVConst(unsigned int Value) : Value(Value) {}
+  void dump(std::ostream &Out) {
+    Out << "BV:" << Value;
+  }
+  unsigned int getValue() {
+    return Value;
+  }
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+    return EM.mkConst(CVC4::BitVector(32, Value));
+  }
+private:
+  unsigned int Value;
+};
+
+class BoolConst : public Const {
 public:
   BoolConst(bool Value) : Value(Value) {}
-  Expr *Replace(Var *Variable, Expr *Expression) {
-    return this;
-  }
-  Expr *Copy() {
-    return this;
-  }
   void dump(std::ostream &Out) {
     Out << (Value ? "true" : "false");
   }
@@ -130,8 +164,14 @@ public:
       {"<", CVC4::Kind::LT},
       {">", CVC4::Kind::GT},
       {"!", CVC4::Kind::NOT},
+      {"&", CVC4::Kind::BITVECTOR_AND},
+      {"|", CVC4::Kind::BITVECTOR_OR},
+      {"'>", CVC4::Kind::BITVECTOR_UGT},
+      {"'>=", CVC4::Kind::BITVECTOR_UGE},
+      {"'<", CVC4::Kind::BITVECTOR_ULT},
+      {"'<=", CVC4::Kind::BITVECTOR_ULE},
+      
     };
-    
     return EM.mkExpr(Map[Op], Left->Translate(EM, VARS), Right->Translate(EM, VARS));
   }
   void forAllVars(std::function<void(std::string)> F) {
@@ -165,7 +205,8 @@ public:
 //     {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"}
     std::unordered_map<std::string, CVC4::Kind> Map = {
       {"-", CVC4::Kind::UMINUS},
-      {"!", CVC4::Kind::NOT}
+      {"!", CVC4::Kind::NOT},
+      {"~", CVC4::Kind::BITVECTOR_NOT}
     };
     return EM.mkExpr(Map[Op], SubExpr->Translate(EM, VARS));
   }

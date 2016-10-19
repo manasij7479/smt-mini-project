@@ -70,19 +70,61 @@ typedef std::function<Result(Stream)> Parser;
 
 Result ParseExpr(Stream in, bool NoBinExprRecurse = false);
 
-Result ParseVar(Stream in) {
+Result ParseIntVar(Stream in) {
   std::string Name = in.loop([](char c){return std::isalpha(c);});
   Expr *Ptr = nullptr; 
   if (Name != "") {
-    Ptr = new Var(Name);
+    Ptr = new IntVar(Name);
   }
   return Result(Ptr, in, "");
 }
+Result ParseBVVar(Stream in) {
+  Stream Copy = in;
+  Result ret(nullptr, Copy, "");
+  if (!in.fixed("'"))
+    return ret;
+  std::string Name = in.loop([](char c){return std::isalpha(c);});
+  Expr *Ptr = nullptr; 
+  if (Name != "") {
+    Ptr = new BVVar(Name);
+  }
+  return Result(Ptr, in, "");
+}
+
+Result ParseVar(Stream in) {
+  Stream Copy = in;
+  
+  Result iv = ParseIntVar(in);
+  if (iv.Ptr)
+    return iv;
+  
+  Result bvv = ParseBVVar(in);
+  if (bvv.Ptr)
+    return bvv;
+  
+  Result ret(nullptr, Copy, "");
+  return ret;
+}
+
 Result ParseIntConst(Stream in) {
   std::string Name = in.loop([](char c){return std::isdigit(c);});
   Expr *Ptr = nullptr; 
   if (Name != "") {
     Ptr = new IntConst(std::stoi(Name));
+  }
+  return Result(Ptr, in, "");
+}
+
+Result ParseBVConst(Stream in) {
+  Stream Copy = in;
+  Result ret(nullptr, Copy, "");
+  if (!in.fixed("'"))
+    return ret;
+  
+  std::string Name = in.loop([](char c){return std::isdigit(c);});
+  Expr *Ptr = nullptr; 
+  if (Name != "") {
+    Ptr = new BVConst(std::stoi(Name));
   }
   return Result(Ptr, in, "");
 }
@@ -107,7 +149,12 @@ Result ParseBinaryExpr(Stream in) {
   if (!Left.Ptr)
     return ret;
   in = Left.Str;
-  std::vector<std::string> choices {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">"};
+  std::vector<std::string> choices 
+   {"+", "->", "-", "*", "/", 
+    "&&", "&",  "||", "|", "==",
+    "<=", ">=", "<", ">",
+     "'>=", "'>", "'<=", "'<"
+  };
   std::string Op = in.fixed(choices);
   if (Op == "")
     return ret;
@@ -128,7 +175,7 @@ Result ParseUnaryExpr(Stream in) {
   Result ret(nullptr, Copy, "");
 //   if (!in.fixed("("))
 //     return ret;
-  std::vector<std::string> choices {"-", "!"};
+  std::vector<std::string> choices {"-", "!", "~"};
   std::string Op = in.fixed(choices);
   if (Op == "")
     return ret;
@@ -176,10 +223,14 @@ Result ParseExpr(Stream in, bool NoBinExprRecurse) {
   
   Result bc = ParseBoolConst(in);
   if (bc.Ptr)
-    return bc;  
+    return bc;
+  Result bvc = ParseBVConst(in);
+  if (bvc.Ptr)
+    return bvc;
   Result var = ParseVar(in);
   if (var.Ptr)
     return var;
+
   Result ic = ParseIntConst(in);
   if (ic.Ptr)
     return ic;

@@ -6,10 +6,14 @@
 
 using namespace mm;
 int main(int argc, char **argv) {
-  std::string test;
+  std::string input;
   if (argc > 1) {
     std::ifstream ifs(argv[1]);
-    test.assign( (std::istreambuf_iterator<char>(ifs) ),
+    if (!ifs) {
+      std::cerr << "File not found : " << argv[1] << std::endl;
+      return 1;
+    }
+    input.assign( (std::istreambuf_iterator<char>(ifs) ),
                 (std::istreambuf_iterator<char>()) );
   }
   else {
@@ -17,7 +21,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   
-  Stream in(test.c_str(), 0, test.length()-1);
+  Stream in(input.c_str(), 0, input.length()-1);
   Result R = ParseProgram(in);
   if (!R.Ptr) {
     std::cout << "FAIL\n";
