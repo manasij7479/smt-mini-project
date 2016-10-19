@@ -149,31 +149,7 @@ public:
     Right->dump(Out);
     Out << ')';
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
-    std::unordered_map<std::string, CVC4::Kind> Map = {
-      {"+", CVC4::Kind::PLUS},
-      {"-", CVC4::Kind::MINUS},
-      {"->", CVC4::Kind::IMPLIES},
-      {"*", CVC4::Kind::MULT},
-      {"/", CVC4::Kind::DIVISION},
-      {"&&", CVC4::Kind::AND},
-      {"||", CVC4::Kind::OR},
-      {"==", CVC4::Kind::EQUAL},
-      {"<=", CVC4::Kind::LEQ},
-      {">=", CVC4::Kind::GEQ},
-      {"<", CVC4::Kind::LT},
-      {">", CVC4::Kind::GT},
-      {"!", CVC4::Kind::NOT},
-      {"&", CVC4::Kind::BITVECTOR_AND},
-      {"|", CVC4::Kind::BITVECTOR_OR},
-      {"'>", CVC4::Kind::BITVECTOR_UGT},
-      {"'>=", CVC4::Kind::BITVECTOR_UGE},
-      {"'<", CVC4::Kind::BITVECTOR_ULT},
-      {"'<=", CVC4::Kind::BITVECTOR_ULE},
-      
-    };
-    return EM.mkExpr(Map[Op], Left->Translate(EM, VARS), Right->Translate(EM, VARS));
-  }
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS);
   void forAllVars(std::function<void(std::string)> F) {
     Left->forAllVars(F);
     Right->forAllVars(F);
@@ -201,15 +177,7 @@ public:
     SubExpr->dump(Out);
     Out << ')';
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
-//     {"+", "->", "-", "*", "/", "&&", "||", "==", "<=", ">=", "<", ">", "!"}
-    std::unordered_map<std::string, CVC4::Kind> Map = {
-      {"-", CVC4::Kind::UMINUS},
-      {"!", CVC4::Kind::NOT},
-      {"~", CVC4::Kind::BITVECTOR_NOT}
-    };
-    return EM.mkExpr(Map[Op], SubExpr->Translate(EM, VARS));
-  }
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS);
   void forAllVars(std::function<void(std::string)> F) {
     SubExpr->forAllVars(F);
   }
@@ -219,9 +187,11 @@ private:
   bool isBool;
 };
 
+namespace {
 void tab(std::ostream &out, int level) {
   while (level--)
     out << "  ";
+}
 }
 
 class Stmt {
@@ -258,15 +228,7 @@ public:
     }
     return Cur;
   }
-  void dump(std::ostream &Out, int level) {
-    tab(Out, level);
-    Out << "{\n";
-    for (auto *Simple : Statements) {
-      Simple->dump(Out, level+1);
-    }
-    tab(Out, level);
-    Out << "}\n";
-  }
+  void dump(std::ostream &Out, int level);
 private:
   std::vector<Stmt *> Statements;
 };
@@ -281,18 +243,7 @@ public:
       new BinaryExpr("->", new UnaryExpr("!", Condition), 
       FalseStmt->WeakestPrecondition(Post)), true);
   }
-  void dump(std::ostream &Out, int level) {
-    tab(Out, level);
-    Out << "if ( ";
-    Condition->dump(Out);
-    Out << " ) { \n";
-    TrueStmt->dump(Out, level+1);
-    tab(Out, level);
-    Out << "} else {\n";
-    FalseStmt->dump(Out, level+1);
-    tab(Out, level);
-    Out << "}\n";
-  }
+  void dump(std::ostream &Out, int level);
 private:
   Expr *Condition;
   Stmt *TrueStmt;
@@ -312,15 +263,7 @@ public:
   Expr *getPost() {
     return Post;
   }
-  void dump(std::ostream &Out) {
-    Out << "pre:\t";
-    Pre->dump(Out);
-    Out << "\nstmt:\n";
-    Statement->dump(Out, 0);
-    Out << "post:\t";
-    Post->dump(Out);
-    Out << std::endl;
-  }
+  void dump(std::ostream &Out);
 private:
   Expr *Pre;
   Stmt *Statement;
