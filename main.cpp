@@ -42,8 +42,12 @@ int main(int argc, char **argv) {
   
   CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
    
-  std::cout << "Weakest Precondition : " << WeakestPreCond.toString() << std::endl;
-  std::cout << "TEST : " << Test.toString() << std::endl;
+  std::cout << "Given Program : \n";
+  Prog->dump(std::cout);
+  
+  std::cout << "\nWeakest Precondition : " 
+            << WeakestPreCond.toString() << std::endl;
+//   std::cout << "TEST : " << Test.toString() << std::endl;
   auto Result = smt.query(Test);
   std::cout << "Result : " << Result << std::endl;
 
@@ -51,6 +55,9 @@ int main(int argc, char **argv) {
     std::cout << "Model : \n";
     std::set<std::string> Vars;
     Prog->getPre()->forAllVars([&](std::string VarName){
+      Vars.insert(VarName);
+    });
+    WP->forAllVars([&](std::string VarName){
       Vars.insert(VarName);
     });
     for (auto VarName : Vars) {

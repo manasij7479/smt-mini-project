@@ -178,12 +178,15 @@ private:
   bool isBool;
 };
 
-
+void tab(std::ostream &out, int level) {
+  while (level--)
+    out << "  ";
+}
 
 class Stmt {
 public:
   virtual Expr *WeakestPrecondition(Expr *Post) = 0;
-  virtual void dump(std::ostream &Out) {}
+  virtual void dump(std::ostream &Out, int level = 0) {}
 };
 class AssignStmt : public  Stmt {
 public:
@@ -191,7 +194,8 @@ public:
   Expr *WeakestPrecondition(Expr *Post) {
     return Post->Replace(LValue, RValue);
   }
-  void dump(std::ostream &Out) {
+  void dump(std::ostream &Out, int level) {
+    tab(Out, level);
     LValue->dump(Out);
     Out << " = ";
     RValue->dump(Out);
@@ -213,11 +217,13 @@ public:
     }
     return Cur;
   }
-  void dump(std::ostream &Out) {
+  void dump(std::ostream &Out, int level) {
+    tab(Out, level);
     Out << "{\n";
     for (auto *Simple : Statements) {
-      Simple->dump(Out);
+      Simple->dump(Out, level+1);
     }
+    tab(Out, level);
     Out << "}\n";
   }
 private:
@@ -234,13 +240,16 @@ public:
       new BinaryExpr("->", new UnaryExpr("!", Condition), 
       FalseStmt->WeakestPrecondition(Post)), true);
   }
-  void dump(std::ostream &Out) {
+  void dump(std::ostream &Out, int level) {
+    tab(Out, level);
     Out << "if ( ";
     Condition->dump(Out);
     Out << " ) { \n";
-    TrueStmt->dump(Out);
+    TrueStmt->dump(Out, level+1);
+    tab(Out, level);
     Out << "} else {\n";
-    FalseStmt->dump(Out);
+    FalseStmt->dump(Out, level+1);
+    tab(Out, level);
     Out << "}\n";
   }
 private:
@@ -263,11 +272,11 @@ public:
     return Post;
   }
   void dump(std::ostream &Out) {
-    Out << "pre:\n";
+    Out << "pre:\t";
     Pre->dump(Out);
     Out << "\nstmt:\n";
-    Statement->dump(Out);
-    Out << "post:\n";
+    Statement->dump(Out, 0);
+    Out << "post:\t";
     Post->dump(Out);
     Out << std::endl;
   }

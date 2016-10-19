@@ -1,6 +1,6 @@
-pre: true
+pre: z == 6
 {
-  if (x>0) {
+  if (x >= 0) {
     y = z;
   } else {
     y = -z;
