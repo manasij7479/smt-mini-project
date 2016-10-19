@@ -68,7 +68,7 @@ struct Result {
 };
 typedef std::function<Result(Stream)> Parser;
 
-Result ParseExpr(Stream in);
+Result ParseExpr(Stream in, bool NoBinExprRecurse = false);
 
 Result ParseVar(Stream in) {
   std::string Name = in.loop([](char c){return std::isalpha(c);});
@@ -101,9 +101,9 @@ Result ParseBoolConst(Stream in) {
 Result ParseBinaryExpr(Stream in) {
   Stream Copy = in;
   Result ret(nullptr, Copy, "");
-  if (!in.fixed("("))
-    return ret;
-  Result Left = ParseExpr(in);
+//   if (!in.fixed("("))
+//     return ret;
+  Result Left = ParseExpr(in, true);
   if (!Left.Ptr)
     return ret;
   in = Left.Str;
@@ -115,8 +115,8 @@ Result ParseBinaryExpr(Stream in) {
   if (!Right.Ptr)
     return ret;
   in = Right.Str;
-  if (!in.fixed(")"))
-    return ret;
+//   if (!in.fixed(")"))
+//     return ret;
   BinaryExpr *result = new BinaryExpr(Op, Left.getAs<Expr>(), Right.getAs<Expr>());
   ret.Ptr = result;
   ret.Str = in;
@@ -126,8 +126,8 @@ Result ParseBinaryExpr(Stream in) {
 Result ParseUnaryExpr(Stream in) {
   Stream Copy = in;
   Result ret(nullptr, Copy, "");
-  if (!in.fixed("("))
-    return ret;
+//   if (!in.fixed("("))
+//     return ret;
   std::vector<std::string> choices {"-", "!"};
   std::string Op = in.fixed(choices);
   if (Op == "")
@@ -136,23 +136,43 @@ Result ParseUnaryExpr(Stream in) {
   if (!SubExpr.Ptr)
     return ret;
   in = SubExpr.Str;
-  if (!in.fixed(")"))
-    return ret;
+//   if (!in.fixed(")"))
+//     return ret;
   UnaryExpr *result = new UnaryExpr(Op, SubExpr.getAs<Expr>());
   ret.Ptr = result;
   ret.Str = in;
   return ret;
 }
-
-Result ParseExpr(Stream in) {
+Result ParseNestedExpr(Stream in) {
+  Stream Copy  = in;
+  Result ret(nullptr, Copy, "");
+  if (!in.fixed("("))
+    return ret;
+  Result SubExpr = ParseExpr(in);
+  if (!SubExpr.Ptr)
+    return ret;
+  in = SubExpr.Str;
+  if (!in.fixed(")"))
+    return ret;
+  SubExpr.Str = in;
+  return SubExpr;
+}
+Result ParseExpr(Stream in, bool NoBinExprRecurse) {
   Stream Copy = in;
   
-  Result be = ParseBinaryExpr(in);
+  if (!NoBinExprRecurse) {
+    Result be = ParseBinaryExpr(in);
     if (be.Ptr)
       return be;
+  }
+
+  Result ne = ParseNestedExpr(in);
+  if (ne.Ptr)
+    return ne;
+
   Result ue = ParseUnaryExpr(in);
-    if (ue.Ptr)
-      return ue;
+  if (ue.Ptr)
+    return ue;
   
   Result bc = ParseBoolConst(in);
   if (bc.Ptr)
@@ -230,15 +250,15 @@ Result ParseCondStmt(Stream in) {
   Result ret(nullptr, Copy, "");
   if (!in.fixed("if"))
     return ret;
-//   if (!in.fixed("("))
-//     return ret;
+  if (!in.fixed("("))
+    return ret;
   Result Cond = ParseExpr(in);
   if (!Cond.Ptr)
     return ret;
   in = Cond.Str;
 //   Cond.getAs<Expr>()->dump(std::cout);
-//   if (!in.fixed(")"))
-//     return ret;
+  if (!in.fixed(")"))
+    return ret;
   
   if (!in.fixed("{"))
     return ret;

@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
   CVC4::ExprManager em;
   CVC4::SmtEngine smt(&em);
   smt.setOption("produce-models", true);
+  smt.setOption("output-language", "auto");
   
   std::unordered_map<std::string, CVC4::Expr> SymbolTable;
   

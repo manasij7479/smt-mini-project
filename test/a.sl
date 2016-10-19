@@ -3,7 +3,7 @@ pre: true
   if (x>0) {
     y = z;
   } else {
-    y = (-z);
+    y = -z;
   }
 }
-post: (y>5)
+post: y>5
