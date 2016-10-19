@@ -1,7 +1,23 @@
 #include "Parser.h"
 #include <functional>
-
+#include <vector>
 namespace mm {
+
+typedef std::function<Result(Stream)> Parser;
+Parser Choice(std::vector<Parser> Parsers) {
+  return [&Parsers](Stream in) -> Result {
+    Stream Copy = in;
+
+    for (auto P : Parsers) {
+      Result ret = P(in);
+      if (ret.Ptr)
+        return ret;
+    }
+
+    Result ret(nullptr, Copy, "");
+    return ret;
+  };
+}
 
 Result ParseIntVar(Stream in) {
   std::string Name = in.loop([](char c){return std::isalpha(c);});
@@ -25,18 +41,7 @@ Result ParseBVVar(Stream in) {
 }
 
 Result ParseVar(Stream in) {
-  Stream Copy = in;
-  
-  Result iv = ParseIntVar(in);
-  if (iv.Ptr)
-    return iv;
-  
-  Result bvv = ParseBVVar(in);
-  if (bvv.Ptr)
-    return bvv;
-  
-  Result ret(nullptr, Copy, "");
-  return ret;
+  return Choice({ParseIntVar, ParseBVVar})(in);
 }
 
 Result ParseIntConst(Stream in) {
@@ -72,13 +77,16 @@ Result ParseBoolConst(Stream in) {
     Ptr = new BoolConst(false);
   return Result(Ptr, in, "");
 }
-
+Result ParseExprSansBinExpr(Stream in) {
+  return Choice({ParseNestedExpr, ParseUnaryExpr,
+    ParseBoolConst, ParseBVConst, ParseVar, ParseIntConst})(in);
+}
 Result ParseBinaryExpr(Stream in) {
   Stream Copy = in;
   Result ret(nullptr, Copy, "");
   //   if (!in.fixed("("))
   //     return ret;
-  Result Left = ParseExpr(in, true);
+  Result Left = ParseExprSansBinExpr(in);
   if (!Left.Ptr)
     return ret;
   in = Left.Str;
@@ -137,39 +145,10 @@ Result ParseNestedExpr(Stream in) {
   SubExpr.Str = in;
   return SubExpr;
 }
-Result ParseExpr(Stream in, bool NoBinExprRecurse) {
-  Stream Copy = in;
-  
-  if (!NoBinExprRecurse) {
-    Result be = ParseBinaryExpr(in);
-    if (be.Ptr)
-      return be;
-  }
-  
-  Result ne = ParseNestedExpr(in);
-  if (ne.Ptr)
-    return ne;
-  
-  Result ue = ParseUnaryExpr(in);
-  if (ue.Ptr)
-    return ue;
-  
-  Result bc = ParseBoolConst(in);
-  if (bc.Ptr)
-    return bc;
-  Result bvc = ParseBVConst(in);
-  if (bvc.Ptr)
-    return bvc;
-  Result var = ParseVar(in);
-  if (var.Ptr)
-    return var;
-  
-  Result ic = ParseIntConst(in);
-  if (ic.Ptr)
-    return ic;
-  
-  Result ret(nullptr, Copy, "");
-  return ret;
+
+Result ParseExpr(Stream in) {
+  return Choice({ParseBinaryExpr, ParseNestedExpr, ParseUnaryExpr,
+                 ParseBoolConst, ParseBVConst, ParseVar, ParseIntConst})(in);
 }
 
 Result ParseStmt(Stream in);
@@ -278,21 +257,7 @@ Result ParseCondStmt(Stream in) {
 }
 
 Result ParseStmt(Stream in) {
-  Stream Copy = in;
-  
-  Result as = ParseAssignStmt(in);
-  if (as.Ptr)
-    return as;
-  Result ss = ParseSeqStmt(in);
-  if (ss.Ptr)
-    return ss;
-  
-  Result cs = ParseCondStmt(in);
-  if (cs.Ptr)
-    return cs;
-  
-  Result ret(nullptr, Copy, "");
-  return ret;
+  return Choice({ParseAssignStmt, ParseSeqStmt, ParseCondStmt})(in);
 }
 
 Result ParseProgram(Stream in) {

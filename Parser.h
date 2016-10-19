@@ -68,7 +68,7 @@ struct Result {
 };
 typedef std::function<Result(Stream)> Parser;
 
-Result ParseExpr(Stream in, bool NoBinExprRecurse = false);
+Result ParseExpr(Stream in);
 Result ParseIntVar(Stream in);
 Result ParseBVVar(Stream in);
 Result ParseVar(Stream in);
