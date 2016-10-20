@@ -18,7 +18,7 @@ public:
   virtual Expr *Copy() = 0;
   virtual void dump(std::ostream &Out) {}
   virtual CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) = 0;
-  virtual void forAllVars(std::function<void(std::string)> F) {}
+  virtual void forAllVars(std::function<void(std::string)> F) = 0;
 };
 class Var : public Expr {
 public:
@@ -74,6 +74,7 @@ public:
 
 class Const : public Expr {
 public:
+  void forAllVars(std::function<void(std::string)> F) {}
   Expr *Replace(Var *Variable, Expr *Expression) {
     return this;
   }
@@ -164,7 +165,7 @@ private:
 class UnaryExpr : public Expr {
 public:
   UnaryExpr(std::string Op, Expr *SubExpr, bool isBool = false) 
-    : Op(Op), SubExpr(SubExpr), isBool(isBool) {}
+  : Op(Op), SubExpr(SubExpr), isBool(isBool) {}
   Expr *Replace(Var *Variable, Expr *Expression) {
     return new UnaryExpr(Op, SubExpr->Replace(Variable, Expression), isBool);
   }
@@ -185,6 +186,59 @@ private:
   std::string Op;
   Expr *SubExpr;
   bool isBool;
+};
+
+class UFExpr : public Expr {
+public:
+  UFExpr(std::string FName, std::vector<Expr *> SubExprs) 
+  : FName(FName), SubExprs(SubExprs) {}
+  Expr *Replace(Var *Variable, Expr *Expression) {
+    std::vector<Expr *> NewExprs;
+    for (auto *E : SubExprs) {
+      NewExprs.push_back(E->Replace(Variable, Expression));
+    }
+    return new UFExpr(FName, NewExprs);
+  }
+  Expr *Copy() {
+    return new UFExpr(FName, SubExprs);
+  }
+  void dump(std::ostream &Out) {
+    Out << FName;
+    Out << '(';
+    for (auto SubExpr : SubExprs) {
+      SubExpr->dump(Out);
+      Out << ",";
+    }
+    Out << "\b";
+    Out << ')';
+  }
+  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+    
+    if (VARS.find(FName) == VARS.end()) {
+//     Expr f_x = em.mkExpr(kind::APPLY_UF, f, x);
+      CVC4::Type integer = EM.integerType();
+  //     Type boolean = em.booleanType();
+      std::vector<CVC4::Type> types(SubExprs.size(), integer);
+      CVC4::Type ftype = EM.mkFunctionType(types, integer);
+      
+      VARS[FName] = EM.mkVar(FName, ftype);
+    }
+    std::vector<CVC4::Expr> CVC4SubExprs;
+    for (Expr *SE : SubExprs) {
+      CVC4SubExprs.push_back(SE->Translate(EM, VARS));
+    }
+//     std::cout << CVC4SubExprs.size() << std::endl;
+    
+    return EM.mkExpr(CVC4::Kind::APPLY_UF, VARS[FName] ,CVC4SubExprs);
+  }
+  void forAllVars(std::function<void(std::string)> F) {
+    F(FName);
+    for (auto SubExpr : SubExprs)
+      SubExpr->forAllVars(F);
+  }
+private:
+  std::string FName;
+  std::vector<Expr *> SubExprs;
 };
 
 namespace {

@@ -41,17 +41,17 @@ int main(int argc, char **argv) {
   std::unordered_map<std::string, CVC4::Expr> SymbolTable;
   
   CVC4::Expr WeakestPreCond  = WP->Translate(em, SymbolTable);
-  
   CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
   
   CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
    
   std::cout << "Given Program : \n";
   Prog->dump(std::cout);
-  
+  WeakestPreCond = smt.simplify(WeakestPreCond);
+  Test = smt.simplify(Test);
   std::cout << "\nWeakest Precondition : " 
             << WeakestPreCond.toString() << std::endl;
-//   std::cout << "TEST : " << Test.toString() << std::endl;
+  std::cout << "TEST : " << Test.toString() << std::endl;
   auto Result = smt.query(Test);
   std::cout << "Result : " << Result << std::endl;
 

@@ -83,7 +83,7 @@ Result ParseBoolConst(Stream in) {
 }
 Result ParseExprSansBinExpr(Stream in) {
   return Choice({ParseNestedExpr, ParseUnaryExpr,
-    ParseBoolConst, ParseBVConst, ParseVar, ParseIntConst})(in);
+    ParseBoolConst, ParseBVConst, ParseVar, ParseIntConst, ParseUFExpr})(in);
 }
 Result ParseBinaryExpr(Stream in) {
   Stream Copy = in;
@@ -135,6 +135,35 @@ Result ParseUnaryExpr(Stream in) {
   ret.Str = in;
   return ret;
 }
+
+Result ParseUFExpr(Stream in) {
+  Stream Copy = in;
+  Result ret(nullptr, Copy, "");
+    if (!in.fixed("["))
+      return ret;
+  Result V = ParseVar(in);
+  if (!V.Ptr)
+    return ret;
+  in = V.Str;
+  
+  std::vector<Expr *> SubExprs;
+  while (true) {
+    Result SubExpr = ParseExpr(in);
+    if (!SubExpr.Ptr)
+      break;
+    SubExprs.push_back(SubExpr.getAs<Expr>());
+    in = SubExpr.Str;
+  }
+  
+  if (!in.fixed("]"))
+    return ret;
+  std::string name = V.getAs<Var>()->getName();
+  UFExpr *result = new UFExpr(name, SubExprs);
+  ret.Ptr = result;
+  ret.Str = in;
+  return ret;
+}
+
 Result ParseNestedExpr(Stream in) {
   Stream Copy  = in;
   Result ret(nullptr, Copy, "");
@@ -152,7 +181,7 @@ Result ParseNestedExpr(Stream in) {
 
 Result ParseExpr(Stream in) {
   return Choice({ParseBinaryExpr, ParseNestedExpr, ParseUnaryExpr,
-                 ParseBoolConst, ParseBVConst, ParseVar, ParseIntConst})(in);
+                 ParseBoolConst, ParseBVConst, ParseVar, ParseIntConst, ParseUFExpr})(in);
 }
 
 Result ParseStmt(Stream in);

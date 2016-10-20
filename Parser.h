@@ -13,6 +13,7 @@ Result ParseBVConst(Stream in);
 Result ParseBoolConst(Stream in);
 Result ParseBinaryExpr(Stream in);
 Result ParseUnaryExpr(Stream in);
+Result ParseUFExpr(Stream in);
 Result ParseNestedExpr(Stream in);
 Result ParseAssignStmt(Stream in);
 Result ParseSeqStmt(Stream in);
