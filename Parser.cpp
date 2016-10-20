@@ -1,6 +1,10 @@
+#include "AST.h"
 #include "Parser.h"
 #include <functional>
 #include <vector>
+#include <cctype>
+#include <iostream>
+#include <set>
 namespace mm {
 
 typedef std::function<Result(Stream)> Parser;
@@ -228,32 +232,32 @@ Result ParseCondStmt(Stream in) {
     
     
     
-    Result TrueStmt = ParseStmt(in);
-    if (!TrueStmt.Ptr) {
-      return ret;
-    }
-    in = TrueStmt.Str;
-    //   TrueStmt.getAs<Stmt>()->dump(std::cout);
+  Result TrueStmt = ParseStmt(in);
+  if (!TrueStmt.Ptr) {
+    return ret;
+  }
+  in = TrueStmt.Str;
+  //   TrueStmt.getAs<Stmt>()->dump(std::cout);
+  
+  if (!in.fixed("}"))
+    return ret;
+  if (!in.fixed("else"))
+    return ret;
+  if (!in.fixed("{"))
+    return ret;
     
-    if (!in.fixed("}"))
-      return ret;
-    if (!in.fixed("else"))
-      return ret;
-    if (!in.fixed("{"))
-      return ret;
-      
-      Result FalseStmt = ParseStmt(in);
-      if (!FalseStmt.Ptr)
-        return ret;
-      in = FalseStmt.Str;
-      //   FalseStmt.getAs<Stmt>()->dump(std::cout);
-      if (!in.fixed("}"))
-        return ret;
-      CondStmt *result = new CondStmt(Cond.getAs<Expr>(), TrueStmt.getAs<Stmt>(),FalseStmt.getAs<Stmt>());
-      //   result->dump(std::cout);
-      ret.Ptr = result;
-      ret.Str = in;
-      return ret;
+  Result FalseStmt = ParseStmt(in);
+  if (!FalseStmt.Ptr)
+    return ret;
+  in = FalseStmt.Str;
+  //   FalseStmt.getAs<Stmt>()->dump(std::cout);
+  if (!in.fixed("}"))
+    return ret;
+  CondStmt *result = new CondStmt(Cond.getAs<Expr>(), TrueStmt.getAs<Stmt>(),FalseStmt.getAs<Stmt>());
+  //   result->dump(std::cout);
+  ret.Ptr = result;
+  ret.Str = in;
+  return ret;
 }
 
 Result ParseStmt(Stream in) {
