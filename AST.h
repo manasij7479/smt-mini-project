@@ -264,23 +264,9 @@ public:
     : Condition(Condition), TrueStmt(TrueStmt), FalseStmt(FalseStmt) {};
     CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) {
       auto C = Condition->Translate(EM, Vars);
-      return 
-      EM.mkExpr
-      (
-        CVC4::Kind::AND,
-        EM.mkExpr
-        (
-          CVC4::Kind::IMPLIES,
-          C,
-          TrueStmt->WeakestPrecondition(Post, EM, Vars)
-        ),
-        EM.mkExpr
-        (
-          CVC4::Kind::IMPLIES,
-          C.notExpr(),
-          FalseStmt->WeakestPrecondition(Post, EM, Vars)
-        )
-        );
+      return
+      C.impExpr(TrueStmt->WeakestPrecondition(Post, EM, Vars))
+       .andExpr(C.notExpr().impExpr(FalseStmt->WeakestPrecondition(Post, EM, Vars)));
   }
   void dump(std::ostream &Out, int level);
 private:
