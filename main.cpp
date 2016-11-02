@@ -3,7 +3,7 @@
 #include <fstream>
 #include "AST.h"
 #include "Parser.h"
-
+#include "ExprSimplifier.h"
 using namespace mm;
 int main(int argc, char **argv) {
   std::string input;
@@ -36,13 +36,16 @@ int main(int argc, char **argv) {
   smt.setOption("output-language", "auto");
   
   std::unordered_map<std::string, CVC4::Expr> SymbolTable;
-
   
   CVC4::Expr Post = Prog->getPost()->Translate(em, SymbolTable);
   CVC4::Expr WeakestPreCond  = Prog->getStatament()->WeakestPrecondition(Post, em, SymbolTable);
   
   CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
   
+  std::cout << "Computed WP:\n" << WeakestPreCond.toString() << std::endl;
+  WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
+  std::cout << "Simplified WP:\n" << WeakestPreCond.toString() << std::endl;
+
   CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
    
   std::cout << "Given Program : \n";

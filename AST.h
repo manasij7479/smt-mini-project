@@ -15,10 +15,6 @@ class Expr {
 public:
   virtual void dump(std::ostream &Out) {}
   virtual CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) = 0;
-//   virtual void forAllVars(std::function<void(std::string)> F) = 0;
-  virtual Expr *Simplify(CVC4::SmtEngine &SMT, Table &VARS) {
-    return this;
-  }
   void dbgDmp() {
     dump(std::cerr);
   }
@@ -120,34 +116,6 @@ public:
   }
   CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) override;
 
-  Expr *Simplify(CVC4::SmtEngine &SMT, Table &VARS) override {
-    Expr *Left_ = Left->Simplify(SMT, VARS);
-    Expr *Right_ = Right->Simplify(SMT, VARS);
-    if (Op == "&&") {
-      CVC4::Expr L = Left_->Translate(*SMT.getExprManager(), VARS);
-      CVC4::Expr R = Right_->Translate(*SMT.getExprManager(), VARS);
-      auto Result = SMT.query(L);
-      if (Result.isValid()) {
-        return Right_;
-        
-      }
-      Result = SMT.query(R);
-      if (Result.isValid())
-        return Left_;
-    }
-    else if (Op == "||") {
-      CVC4::Expr L = Left_->Translate(*SMT.getExprManager(), VARS);
-      CVC4::Expr R = Right_->Translate(*SMT.getExprManager(), VARS);
-      auto Result = SMT.query(L);
-      if (!Result.isSat())
-        return Right_;
-      
-      Result = SMT.query(R);
-      if (!Result.isSat())
-        return Left_;
-    }
-    return new BinaryExpr(Op, Left_, Right_);
-  }
 private:
   std::string Op;
   Expr *Left;
@@ -166,9 +134,6 @@ public:
     Out << ')';
   }
   CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS);
-  Expr *Simplify(CVC4::SmtEngine &SMT, Table &VARS) {
-    return new UnaryExpr(Op, SubExpr->Simplify(SMT, VARS));
-  }
 private:
   std::string Op;
   Expr *SubExpr;
