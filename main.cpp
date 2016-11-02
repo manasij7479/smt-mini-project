@@ -39,6 +39,15 @@ int main(int argc, char **argv) {
   smt.setOption("output-language", "auto");
   
   std::unordered_map<std::string, CVC4::Expr> SymbolTable;
+  std::cout << "Computed WP:\n";
+  WP->dump(std::cout);
+  std::cout << std::endl;
+//   std::cout << WP->Translate(em, SymbolTable).toString();
+  WP = WP->Simplify(smt, SymbolTable);
+  std::cout << std::endl;
+  std::cout << "Simplified WP:\n";
+  WP->dump(std::cout);
+  std::cout << std::endl;
   
   CVC4::Expr WeakestPreCond  = WP->Translate(em, SymbolTable);
   CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
@@ -47,8 +56,8 @@ int main(int argc, char **argv) {
    
   std::cout << "Given Program : \n";
   Prog->dump(std::cout);
-  WeakestPreCond = smt.simplify(WeakestPreCond);
-  Test = smt.simplify(Test);
+//   WeakestPreCond = smt.simplify(WeakestPreCond);
+//   Test = smt.simplify(Test);
   std::cout << "\nWeakest Precondition : " 
             << WeakestPreCond.toString() << std::endl;
   std::cout << "TEST : " << Test.toString() << std::endl;

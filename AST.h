@@ -19,6 +19,12 @@ public:
   virtual void dump(std::ostream &Out) {}
   virtual CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) = 0;
   virtual void forAllVars(std::function<void(std::string)> F) = 0;
+  virtual Expr *Simplify(CVC4::SmtEngine &SMT, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+    return this;
+  }
+  void dbgDmp() {
+    dump(std::cerr);
+  }
 };
 class Var : public Expr {
 public:
@@ -41,6 +47,7 @@ public:
   void forAllVars(std::function<void(std::string)> F) {
     F(Name);
   }
+
 protected:
   std::string Name;
   // int ID; // Will be needed if scopes are introduced.
@@ -80,7 +87,7 @@ public:
   }
   Expr *Copy() {
     return this;
-  }  
+  }
 };
 
 class IntConst : public Const {
@@ -155,6 +162,34 @@ public:
     Left->forAllVars(F);
     Right->forAllVars(F);
   }
+  Expr *Simplify(CVC4::SmtEngine &SMT, std::unordered_map<std::string, CVC4::Expr> &VARS) override {
+    Expr *Left_ = Left->Simplify(SMT, VARS);
+    Expr *Right_ = Right->Simplify(SMT, VARS);
+    if (Op == "&&") {
+      CVC4::Expr L = Left_->Translate(*SMT.getExprManager(), VARS);
+      CVC4::Expr R = Right_->Translate(*SMT.getExprManager(), VARS);
+      auto Result = SMT.query(L);
+      if (Result.isValid()) {
+        return Right_;
+        
+      }
+      Result = SMT.query(R);
+      if (Result.isValid())
+        return Left_;
+    }
+    else if (Op == "||") {
+      CVC4::Expr L = Left_->Translate(*SMT.getExprManager(), VARS);
+      CVC4::Expr R = Right_->Translate(*SMT.getExprManager(), VARS);
+      auto Result = SMT.query(L);
+      if (!Result.isSat())
+        return Right_;
+      
+      Result = SMT.query(R);
+      if (!Result.isSat())
+        return Left_;
+    }
+    return new BinaryExpr(Op, Left_, Right_);
+  }
 private:
   std::string Op;
   Expr *Left;
@@ -181,6 +216,9 @@ public:
   CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS);
   void forAllVars(std::function<void(std::string)> F) {
     SubExpr->forAllVars(F);
+  }
+  Expr *Simplify(CVC4::SmtEngine &SMT, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+    return new UnaryExpr(Op, SubExpr->Simplify(SMT, VARS));
   }
 private:
   std::string Op;

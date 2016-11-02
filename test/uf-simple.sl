@@ -1,5 +1,6 @@
-pre: (a == 1) && ([f a] == 1)
+pre: [f a] == 1
 {
-  a = a + [f a];
+  a = 1;
+  b = a + [f 5];
 }
-post: a==2
+post: b == 2
