@@ -33,6 +33,7 @@ std::pair<CVC4::Expr, bool> ShortCircuitBinaryOr(CVC4::SmtEngine &SMT, CVC4::Exp
   return {E, false};
 }
 
+
 CVC4::Expr ApplyAllRecursively(CVC4::SmtEngine &SMT, CVC4::Expr E) {
   //Probably too slow to be practical beyond small programs
   using namespace std::placeholders;

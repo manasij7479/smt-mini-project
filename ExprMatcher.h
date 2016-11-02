@@ -8,18 +8,20 @@ typedef std::function<std::pair<CVC4::Expr, bool>(CVC4::Expr)> Mutator;
 
 class Pattern {
 public:
-  Pattern() {}
-  Pattern(CVC4::Type T, std::map<int, Pattern> Children)
+  Pattern() : isCatchAllPattern(true) {}
+  Pattern(CVC4::Type T, std::map<size_t, Pattern> Children)
     : T(T), Children(Children), isTypePattern(true) {}
-  Pattern(CVC4::Kind K, std::map<int, Pattern> Children)
-    : K(K), Children(Children), isTypePattern(false) {}
+  Pattern(CVC4::Kind K, std::map<size_t, Pattern> Children)
+    : K(K), Children(Children), isKindPattern(true) {}
   
   bool Match(CVC4::Expr E) {
+    if (isCatchAllPattern)
+      return true;
     if (isTypePattern) {
       if (E.getType() != T) {
         return false;
       }
-    } else {
+    } else if (isKindPattern) {
       if (E.getKind() != K) {
         return false;
       }
@@ -38,8 +40,10 @@ public:
 private:
   CVC4::Type T;
   CVC4::Kind K;
-  std::map<int, Pattern> Children;
-  bool isTypePattern;
+  std::map<size_t, Pattern> Children;
+  bool isTypePattern = false;
+  bool isKindPattern = false;
+  bool isCatchAllPattern = false;
 };
 
 std::pair<CVC4::Expr, bool> PostOrderPatternMatch(CVC4::Expr E, Pattern P, Mutator F) {
@@ -66,5 +70,11 @@ CVC4::Expr PostOrderKindMatch(CVC4::Expr E, CVC4::Kind K, Mutator F) {
   Pattern P(K, {});
   return PostOrderPatternMatch(E, P, F).first;
 }
+
+CVC4::Expr PostOrderTraversal(CVC4::Expr E, Mutator F) {
+  Pattern P; // Always passes
+  return PostOrderPatternMatch(E, P, F).first;
+}
+
 }
 #endif
