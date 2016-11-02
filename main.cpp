@@ -29,9 +29,6 @@ int main(int argc, char **argv) {
   }
   
   Program *Prog = R.getAs<Program>();
-//   Prog->dump(std::cout);
-  Expr *Post = Prog->getPost();
-  auto WP = Prog->getStatament()->WeakestPrecondition(Post);
 
   CVC4::ExprManager em;
   CVC4::SmtEngine smt(&em);
@@ -39,25 +36,18 @@ int main(int argc, char **argv) {
   smt.setOption("output-language", "auto");
   
   std::unordered_map<std::string, CVC4::Expr> SymbolTable;
-  std::cout << "Computed WP:\n";
-  WP->dump(std::cout);
-  std::cout << std::endl;
-//   std::cout << WP->Translate(em, SymbolTable).toString();
-  WP = WP->Simplify(smt, SymbolTable);
-  std::cout << std::endl;
-  std::cout << "Simplified WP:\n";
-  WP->dump(std::cout);
-  std::cout << std::endl;
+
   
-  CVC4::Expr WeakestPreCond  = WP->Translate(em, SymbolTable);
+  CVC4::Expr Post = Prog->getPost()->Translate(em, SymbolTable);
+  CVC4::Expr WeakestPreCond  = Prog->getStatament()->WeakestPrecondition(Post, em, SymbolTable);
+  
   CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
   
   CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
    
   std::cout << "Given Program : \n";
   Prog->dump(std::cout);
-//   WeakestPreCond = smt.simplify(WeakestPreCond);
-//   Test = smt.simplify(Test);
+
   std::cout << "\nWeakest Precondition : " 
             << WeakestPreCond.toString() << std::endl;
   std::cout << "TEST : " << Test.toString() << std::endl;
@@ -66,16 +56,10 @@ int main(int argc, char **argv) {
 
   if (!Result.isValid()) {
     std::cout << "Model : \n";
-    std::set<std::string> Vars;
-    Prog->getPre()->forAllVars([&](std::string VarName){
-      Vars.insert(VarName);
-    });
-    WP->forAllVars([&](std::string VarName){
-      Vars.insert(VarName);
-    });
-    for (auto VarName : Vars) {
+    for (auto Var : SymbolTable) {
+      auto VarName = Var.first;
       std::cout << VarName << '\t' <<
-        smt.getValue(SymbolTable[VarName]).toString() << std::endl;
+        smt.getValue(Var.second).toString() << std::endl;
     }
   }
 }

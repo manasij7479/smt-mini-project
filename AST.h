@@ -10,16 +10,13 @@
 namespace mm {
 class Var;
 class Expr;
-
+typedef std::unordered_map<std::string, CVC4::Expr> Table;
 class Expr {
 public:
-  virtual Expr *Replace(Var *Variable, Expr *Expression) = 0;
-  /// Create a new Expression with ``Variable`` replaced with ``Expression``.
-  virtual Expr *Copy() = 0;
   virtual void dump(std::ostream &Out) {}
-  virtual CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) = 0;
-  virtual void forAllVars(std::function<void(std::string)> F) = 0;
-  virtual Expr *Simplify(CVC4::SmtEngine &SMT, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+  virtual CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) = 0;
+//   virtual void forAllVars(std::function<void(std::string)> F) = 0;
+  virtual Expr *Simplify(CVC4::SmtEngine &SMT, Table &VARS) {
     return this;
   }
   void dbgDmp() {
@@ -29,13 +26,6 @@ public:
 class Var : public Expr {
 public:
   Var(std::string Name) : Name(Name) {} 
-  Expr *Replace(Var *Variable, Expr *Expression) {
-    if (Variable->Name == Name) {
-      return Expression->Copy();
-    } else {
-      return this->Copy();
-    }
-  }
 
   void dump(std::ostream &Out) {
     Out << Name;
@@ -43,11 +33,6 @@ public:
   std::string getName() {
     return Name;
   }
-  
-  void forAllVars(std::function<void(std::string)> F) {
-    F(Name);
-  }
-
 protected:
   std::string Name;
   // int ID; // Will be needed if scopes are introduced.
@@ -55,10 +40,7 @@ protected:
 class IntVar : public Var {
 public:
   IntVar(std::string Name) : Var(Name) {}
-  Expr *Copy() {
-    return new IntVar(Name);
-  }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) {
     if (VARS.find(Name) == VARS.end()) {
       VARS[Name] = EM.mkVar(Name, EM.integerType());
     }
@@ -68,10 +50,7 @@ public:
 class BVVar : public Var {
 public:
   BVVar(std::string Name) : Var(Name) {}
-  Expr *Copy() {
-    return new BVVar(Name);
-  }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) {
     if (VARS.find(Name) == VARS.end()) {
       VARS[Name] = EM.mkVar(Name, EM.mkBitVectorType(32));
     }
@@ -79,18 +58,7 @@ public:
   }
 };
 
-class Const : public Expr {
-public:
-  void forAllVars(std::function<void(std::string)> F) {}
-  Expr *Replace(Var *Variable, Expr *Expression) {
-    return this;
-  }
-  Expr *Copy() {
-    return this;
-  }
-};
-
-class IntConst : public Const {
+class IntConst : public Expr {
 public:
   IntConst(int Value) : Value(Value) {}
 
@@ -100,14 +68,14 @@ public:
   int getValue() {
     return Value;
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) {
     return EM.mkConst(CVC4::Rational(Value));
   }
 private:
   int Value;
 };
 
-class BVConst : public Const {
+class BVConst : public Expr {
 public:
   BVConst(unsigned int Value) : Value(Value) {}
   void dump(std::ostream &Out) {
@@ -116,14 +84,14 @@ public:
   unsigned int getValue() {
     return Value;
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) {
     return EM.mkConst(CVC4::BitVector(32, Value));
   }
 private:
   unsigned int Value;
 };
 
-class BoolConst : public Const {
+class BoolConst : public Expr {
 public:
   BoolConst(bool Value) : Value(Value) {}
   void dump(std::ostream &Out) {
@@ -132,7 +100,7 @@ public:
   int getValue() {
     return Value;
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) {
     return EM.mkConst(Value);
   }
 private:
@@ -143,26 +111,16 @@ class BinaryExpr : public Expr {
 public:
   BinaryExpr(std::string Op, Expr *Left, Expr *Right, bool isBool = false) 
     : Op(Op), Left(Left), Right(Right), isBool(isBool) {}
-  Expr *Replace(Var *Variable, Expr *Expression) {
-    return new BinaryExpr(Op, Left->Replace(Variable, Expression),
-        Right->Replace(Variable, Expression), isBool);
-  }
-  Expr *Copy() {
-    return new BinaryExpr(Op, Left, Right, isBool);
-  }
-  void dump(std::ostream &Out) {
+  void dump(std::ostream &Out) override {
     Out << '(';
     Left->dump(Out);
     Out << Op;
     Right->dump(Out);
     Out << ')';
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS);
-  void forAllVars(std::function<void(std::string)> F) {
-    Left->forAllVars(F);
-    Right->forAllVars(F);
-  }
-  Expr *Simplify(CVC4::SmtEngine &SMT, std::unordered_map<std::string, CVC4::Expr> &VARS) override {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) override;
+
+  Expr *Simplify(CVC4::SmtEngine &SMT, Table &VARS) override {
     Expr *Left_ = Left->Simplify(SMT, VARS);
     Expr *Right_ = Right->Simplify(SMT, VARS);
     if (Op == "&&") {
@@ -201,23 +159,14 @@ class UnaryExpr : public Expr {
 public:
   UnaryExpr(std::string Op, Expr *SubExpr, bool isBool = false) 
   : Op(Op), SubExpr(SubExpr), isBool(isBool) {}
-  Expr *Replace(Var *Variable, Expr *Expression) {
-    return new UnaryExpr(Op, SubExpr->Replace(Variable, Expression), isBool);
-  }
-  Expr *Copy() {
-    return new UnaryExpr(Op, SubExpr, isBool);
-  }
   void dump(std::ostream &Out) {
     Out << '(';
     Out << Op;
     SubExpr->dump(Out);
     Out << ')';
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS);
-  void forAllVars(std::function<void(std::string)> F) {
-    SubExpr->forAllVars(F);
-  }
-  Expr *Simplify(CVC4::SmtEngine &SMT, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS);
+  Expr *Simplify(CVC4::SmtEngine &SMT, Table &VARS) {
     return new UnaryExpr(Op, SubExpr->Simplify(SMT, VARS));
   }
 private:
@@ -230,16 +179,6 @@ class UFExpr : public Expr {
 public:
   UFExpr(std::string FName, std::vector<Expr *> SubExprs) 
   : FName(FName), SubExprs(SubExprs) {}
-  Expr *Replace(Var *Variable, Expr *Expression) {
-    std::vector<Expr *> NewExprs;
-    for (auto *E : SubExprs) {
-      NewExprs.push_back(E->Replace(Variable, Expression));
-    }
-    return new UFExpr(FName, NewExprs);
-  }
-  Expr *Copy() {
-    return new UFExpr(FName, SubExprs);
-  }
   void dump(std::ostream &Out) {
     Out << FName;
     Out << '(';
@@ -250,7 +189,7 @@ public:
     Out << "\b";
     Out << ')';
   }
-  CVC4::Expr Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
+  CVC4::Expr Translate(CVC4::ExprManager &EM, Table &VARS) {
     
     if (VARS.find(FName) == VARS.end()) {
 //     Expr f_x = em.mkExpr(kind::APPLY_UF, f, x);
@@ -265,14 +204,8 @@ public:
     for (Expr *SE : SubExprs) {
       CVC4SubExprs.push_back(SE->Translate(EM, VARS));
     }
-//     std::cout << CVC4SubExprs.size() << std::endl;
     
     return EM.mkExpr(CVC4::Kind::APPLY_UF, VARS[FName] ,CVC4SubExprs);
-  }
-  void forAllVars(std::function<void(std::string)> F) {
-    F(FName);
-    for (auto SubExpr : SubExprs)
-      SubExpr->forAllVars(F);
   }
 private:
   std::string FName;
@@ -288,14 +221,14 @@ void tab(std::ostream &out, int level) {
 
 class Stmt {
 public:
-  virtual Expr *WeakestPrecondition(Expr *Post) = 0;
+  virtual CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) = 0;
   virtual void dump(std::ostream &Out, int level = 0) {}
 };
 class AssignStmt : public  Stmt {
 public:
   AssignStmt(Var *LValue, Expr *RValue) : LValue(LValue), RValue(RValue) {}
-  Expr *WeakestPrecondition(Expr *Post) {
-    return Post->Replace(LValue, RValue);
+  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) {
+    return Post.substitute(LValue->Translate(EM, Vars), RValue->Translate(EM,Vars));
   }
   void dump(std::ostream &Out, int level) {
     tab(Out, level);
@@ -312,11 +245,11 @@ private:
 class SeqStmt : public Stmt {
 public:
   SeqStmt(std::vector<Stmt *> Statements) : Statements(Statements) {};
-  Expr *WeakestPrecondition(Expr *Post) {
-    auto *Cur = Post;
+  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) {
+    auto Cur = Post;
     for (auto It = Statements.rbegin(); It != Statements.rend(); ++It) {
       Stmt *Statement = *It;
-      Cur = Statement->WeakestPrecondition(Cur);
+      Cur = Statement->WeakestPrecondition(Cur, EM, Vars);
     }
     return Cur;
   }
@@ -329,11 +262,25 @@ class CondStmt : public Stmt {
 public:
   CondStmt(Expr *Condition,Stmt *TrueStmt, Stmt *FalseStmt)
     : Condition(Condition), TrueStmt(TrueStmt), FalseStmt(FalseStmt) {};
-  Expr *WeakestPrecondition(Expr *Post) {
-    return new BinaryExpr("&&", 
-      new BinaryExpr("->", Condition, TrueStmt->WeakestPrecondition(Post)),
-      new BinaryExpr("->", new UnaryExpr("!", Condition), 
-      FalseStmt->WeakestPrecondition(Post)), true);
+    CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) {
+      auto C = Condition->Translate(EM, Vars);
+      return 
+      EM.mkExpr
+      (
+        CVC4::Kind::AND,
+        EM.mkExpr
+        (
+          CVC4::Kind::IMPLIES,
+          C,
+          TrueStmt->WeakestPrecondition(Post, EM, Vars)
+        ),
+        EM.mkExpr
+        (
+          CVC4::Kind::IMPLIES,
+          C.notExpr(),
+          FalseStmt->WeakestPrecondition(Post, EM, Vars)
+        )
+        );
   }
   void dump(std::ostream &Out, int level);
 private:
