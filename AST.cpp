@@ -1,4 +1,5 @@
 #include "AST.h"
+bool SIMP_COND = false;
 namespace mm {
 CVC4::Expr BinaryExpr::Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
   std::unordered_map<std::string, CVC4::Kind> Map = {

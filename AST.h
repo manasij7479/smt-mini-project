@@ -7,6 +7,8 @@
 #include <cvc4/cvc4.h>
 #include <functional>
 
+extern bool SIMP_COND; // TODO : Remove global
+
 namespace mm {
 class Var;
 class Expr;
@@ -186,13 +188,14 @@ void tab(std::ostream &out, int level) {
 
 class Stmt {
 public:
-  virtual CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) = 0;
+  virtual CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) = 0;
   virtual void dump(std::ostream &Out, int level = 0) {}
 };
 class AssignStmt : public  Stmt {
 public:
   AssignStmt(Var *LValue, Expr *RValue) : LValue(LValue), RValue(RValue) {}
-  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) {
+  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) {
+    auto &EM = *SMT.getExprManager();
     return Post.substitute(LValue->Translate(EM, Vars), RValue->Translate(EM,Vars));
   }
   void dump(std::ostream &Out, int level) {
@@ -210,11 +213,11 @@ private:
 class SeqStmt : public Stmt {
 public:
   SeqStmt(std::vector<Stmt *> Statements) : Statements(Statements) {};
-  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) {
+  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) {
     auto Cur = Post;
     for (auto It = Statements.rbegin(); It != Statements.rend(); ++It) {
       Stmt *Statement = *It;
-      Cur = Statement->WeakestPrecondition(Cur, EM, Vars);
+      Cur = Statement->WeakestPrecondition(Cur, SMT, Vars);
     }
     return Cur;
   }
@@ -222,16 +225,21 @@ public:
 private:
   std::vector<Stmt *> Statements;
 };
-
 class CondStmt : public Stmt {
 public:
   CondStmt(Expr *Condition,Stmt *TrueStmt, Stmt *FalseStmt)
     : Condition(Condition), TrueStmt(TrueStmt), FalseStmt(FalseStmt) {};
-    CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::ExprManager &EM, Table &Vars) {
+    CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) {
+      auto &EM = *SMT.getExprManager();
       auto C = Condition->Translate(EM, Vars);
-      return
-      C.impExpr(TrueStmt->WeakestPrecondition(Post, EM, Vars))
-       .andExpr(C.notExpr().impExpr(FalseStmt->WeakestPrecondition(Post, EM, Vars)));
+      auto TWP = TrueStmt->WeakestPrecondition(Post, SMT, Vars);
+      auto FWP = FalseStmt->WeakestPrecondition(Post, SMT, Vars);
+      if (SIMP_COND) {
+        auto R = SMT.query(TWP.iffExpr(FWP));
+        if (R.isValid())
+          return TWP;
+      }
+      return C.impExpr(TWP).andExpr(C.notExpr().impExpr(FWP));
   }
   void dump(std::ostream &Out, int level);
 private:
@@ -259,6 +267,8 @@ private:
   Stmt *Statement;
   Expr *Post;
 };
+
+
 
 }
 #endif

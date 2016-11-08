@@ -15,6 +15,8 @@ int main(int argc, char **argv) {
     }
     input.assign( (std::istreambuf_iterator<char>(ifs) ),
                 (std::istreambuf_iterator<char>()) );
+    if (argc >= 3 && std::string(argv[2]) == "simplify")
+      SIMP_COND = true;
   }
   else {
     std::cerr << "Usage : ./weakest-precond <filename>" << std::endl;
@@ -38,14 +40,13 @@ int main(int argc, char **argv) {
   std::unordered_map<std::string, CVC4::Expr> SymbolTable;
   
   CVC4::Expr Post = Prog->getPost()->Translate(em, SymbolTable);
-  CVC4::Expr WeakestPreCond  = Prog->getStatament()->WeakestPrecondition(Post, em, SymbolTable);
+  CVC4::Expr WeakestPreCond  = Prog->getStatament()->WeakestPrecondition(Post, smt, SymbolTable);
   
   CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
-  
-  std::cout << "Computed WP:\n" << WeakestPreCond.toString() << std::endl;
-  WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
-  std::cout << "Simplified WP:\n" << WeakestPreCond.toString() << std::endl;
 
+  if (SIMP_COND) {
+    WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
+  }
   CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
    
   std::cout << "Given Program : \n";

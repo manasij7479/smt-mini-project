@@ -256,9 +256,9 @@ Result ParseCondStmt(Stream in) {
   if (!in.fixed(")"))
     return ret;
   
-  if (!in.fixed("{"))
-    return ret;
-    
+//   if (!in.fixed("{"))
+//     return ret;
+//     
     
     
   Result TrueStmt = ParseStmt(in);
@@ -268,20 +268,20 @@ Result ParseCondStmt(Stream in) {
   in = TrueStmt.Str;
   //   TrueStmt.getAs<Stmt>()->dump(std::cout);
   
-  if (!in.fixed("}"))
-    return ret;
+//   if (!in.fixed("}"))
+//     return ret;
   if (!in.fixed("else"))
     return ret;
-  if (!in.fixed("{"))
-    return ret;
+//   if (!in.fixed("{"))
+//     return ret;
     
   Result FalseStmt = ParseStmt(in);
   if (!FalseStmt.Ptr)
     return ret;
   in = FalseStmt.Str;
   //   FalseStmt.getAs<Stmt>()->dump(std::cout);
-  if (!in.fixed("}"))
-    return ret;
+//   if (!in.fixed("}"))
+//     return ret;
   CondStmt *result = new CondStmt(Cond.getAs<Expr>(), TrueStmt.getAs<Stmt>(),FalseStmt.getAs<Stmt>());
   //   result->dump(std::cout);
   ret.Ptr = result;
