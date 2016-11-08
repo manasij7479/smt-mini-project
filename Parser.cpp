@@ -270,8 +270,13 @@ Result ParseCondStmt(Stream in) {
   
 //   if (!in.fixed("}"))
 //     return ret;
-  if (!in.fixed("else"))
+  if (!in.fixed("else")) {
+    CondStmt *result = new CondStmt(Cond.getAs<Expr>(), TrueStmt.getAs<Stmt>(), new SeqStmt({}));
+  //   result->dump(std::cout);
+    ret.Ptr = result;
+    ret.Str = in;
     return ret;
+  }
 //   if (!in.fixed("{"))
 //     return ret;
     
