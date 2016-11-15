@@ -5,7 +5,7 @@ LDFLAGS := -lpthread -lcvc4 -lgmp
 SRCS :=         $(wildcard *.cpp)
 # Object files are everything in $SRCS, with the .cpp replaced by a .o
 OBJS :=         $(patsubst %.cpp, %.o, $(SRCS))
-TARGET :=       weakest-precond
+TARGET :=       wpsp
 
 # Default target makes the executable
 default :       $(TARGET)
