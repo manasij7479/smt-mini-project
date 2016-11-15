@@ -3,7 +3,7 @@
 #include <fstream>
 #include "AST.h"
 #include "Parser.h"
-#include "ExprSimplifier.h"
+//#include "ExprSimplifier.h"
 using namespace mm;
 int main(int argc, char **argv) {
   std::string input;
@@ -44,9 +44,11 @@ int main(int argc, char **argv) {
   
   CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
 
+  /*
   if (SIMP_COND) {
     WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
   }
+  */
   CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
    
   std::cout << "Given Program : \n";
@@ -56,6 +58,36 @@ int main(int argc, char **argv) {
             << WeakestPreCond.toString() << std::endl;
   std::cout << "TEST : " << Test.toString() << std::endl;
   auto Result = smt.query(Test);
+  std::cout << "Result : " << Result << std::endl;
+
+  if (!Result.isValid()) {
+    std::cout << "Model : \n";
+    for (auto Var : SymbolTable) {
+      auto VarName = Var.first;
+      std::cout << VarName << '\t' <<
+        smt.getValue(Var.second).toString() << std::endl;
+    }
+  }
+
+  CVC4::Expr Pre = Prog->getPre()->Translate(em, SymbolTable);
+  CVC4::Expr StrongestPostCond  = Prog->getStatament()->StrongestPostcondition(Pre, smt, SymbolTable);
+  
+  CVC4::Expr GivenPostcondition = Prog->getPost()->Translate(em, SymbolTable);
+
+  /*
+  if (SIMP_COND) {
+    WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
+  }
+  */
+  Test = em.mkExpr(CVC4::Kind::IMPLIES, StrongestPostCond, GivenPostcondition);
+   
+  std::cout << "Given Program : \n";
+  Prog->dump(std::cout);
+
+  std::cout << "\nStrongest Postcondition : " 
+            << StrongestPostCond.toString() << std::endl;
+  std::cout << "TEST : " << Test.toString() << std::endl;
+  Result = smt.query(Test);
   std::cout << "Result : " << Result << std::endl;
 
   if (!Result.isValid()) {
