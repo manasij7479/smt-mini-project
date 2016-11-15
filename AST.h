@@ -205,14 +205,14 @@ public:
     CVC4::Expr boundVar = EM.mkBoundVar("boundVar_"+Name, Vars[Name].getType());
     std::vector<CVC4::Expr> boundVars;
     boundVars.push_back(boundVar);
-    CVC4::Expr boundVarList = EM.mkExpr(CVC4::Kind::BOUND_VAR_LIST, boundVars);
+    CVC4::Expr boundVarList = EM.mkExpr(CVC4::kind::BOUND_VAR_LIST, boundVar);
     CVC4::Expr predicate1 = EM.mkExpr(CVC4::Kind::EQUAL, 
                                       LValue->Translate(EM, Vars),
                                       RValue->Translate(EM, Vars).substitute(LValue->Translate(EM, Vars), boundVar));
     CVC4::Expr predicate2 = Pre.substitute(LValue->Translate(EM, Vars), boundVar);
     CVC4::Expr predicate = EM.mkExpr(CVC4::Kind::AND, predicate1, predicate2);
     CVC4::Expr formula = EM.mkExpr(CVC4::Kind::EXISTS, boundVarList, predicate);
-    return formula;//SMT.doQuantifierElimination(formula, true);
+    return SMT.doQuantifierElimination(formula, true);
   }
   void dump(std::ostream &Out, int level) {
     tab(Out, level);
