@@ -32,6 +32,7 @@ std::pair<CVC4::Expr, bool> ShortCircuitBinaryOr(CVC4::SmtEngine &SMT, CVC4::Exp
     return {L, true};
   return {E, false};
 }
+
 std::pair<CVC4::Expr, bool> SubsumeBinaryAnd(CVC4::SmtEngine &SMT, CVC4::Expr E) {
   if (E.getNumChildren() != 2)
     return {E, false};
@@ -48,6 +49,7 @@ std::pair<CVC4::Expr, bool> SubsumeBinaryAnd(CVC4::SmtEngine &SMT, CVC4::Expr E)
     return {R, true};
   return {E, false};
 }
+
 std::pair<CVC4::Expr, bool> SubsumeBinaryOr(CVC4::SmtEngine &SMT, CVC4::Expr E) {
   if (E.getNumChildren() != 2)
     return {E, false};

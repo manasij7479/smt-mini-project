@@ -3,7 +3,7 @@
 #include <fstream>
 #include "AST.h"
 #include "Parser.h"
-//#include "ExprSimplifier.h"
+#include "ExprSimplifier.h"
 using namespace mm;
 int main(int argc, char **argv) {
   std::string input;
@@ -44,11 +44,11 @@ int main(int argc, char **argv) {
   
   CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
 
-  /*
+  
   if (SIMP_COND) {
     WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
   }
-  */
+  
   CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
    
   std::cout << "Given Program : \n";
@@ -74,11 +74,11 @@ int main(int argc, char **argv) {
   
   CVC4::Expr GivenPostcondition = Prog->getPost()->Translate(em, SymbolTable);
 
-  /*
+  
   if (SIMP_COND) {
-    WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
+    StrongestPostCond = ApplyAllRecursively(smt, StrongestPostCond);
   }
-  */
+  
   Test = em.mkExpr(CVC4::Kind::IMPLIES, StrongestPostCond, GivenPostcondition);
    
   std::cout << "Given Program : \n";

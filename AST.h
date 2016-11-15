@@ -269,14 +269,14 @@ public:
     CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) {
       auto &EM = *SMT.getExprManager();
       auto C = Condition->Translate(EM, Vars);
-      auto TWP = TrueStmt->StrongestPostcondition(Pre.andExpr(C), SMT, Vars);
-      auto FWP = FalseStmt->WeakestPrecondition(Pre.andExpr(C), SMT, Vars);
-      /*if (SIMP_COND) {
-        auto R = SMT.query(TWP.iffExpr(FWP));
+      auto TSP = TrueStmt->StrongestPostcondition(Pre.andExpr(C), SMT, Vars);
+      auto FSP = FalseStmt->StrongestPostcondition(Pre.andExpr(C.notExpr()), SMT, Vars);
+      if (SIMP_COND) {
+        auto R = SMT.query(TSP.iffExpr(FSP));
         if (R.isValid())
-          return TWP;
-      }*/
-      return TWP.orExpr(FWP);
+          return TSP;
+      }
+      return TSP.orExpr(FSP);
     }
   
   void dump(std::ostream &Out, int level);
