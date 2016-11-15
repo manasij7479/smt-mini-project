@@ -234,9 +234,13 @@ public:
       auto C = Condition->Translate(EM, Vars);
       auto TWP = TrueStmt->WeakestPrecondition(Post, SMT, Vars);
       auto FWP = FalseStmt->WeakestPrecondition(Post, SMT, Vars);
+
       if (SIMP_COND) {
-        auto R = SMT.query(TWP.iffExpr(FWP));
-        if (R.isValid())
+        if (SMT.query(C).isValid())
+          return TWP;
+        if (SMT.query(C.notExpr()).isValid())
+          return FWP;
+        if (SMT.query(TWP.iffExpr(FWP)).isValid())
           return TWP;
       }
       return C.impExpr(TWP).andExpr(C.notExpr().impExpr(FWP));
@@ -267,8 +271,6 @@ private:
   Stmt *Statement;
   Expr *Post;
 };
-
-
 
 }
 #endif

@@ -76,7 +76,6 @@ CVC4::Expr ApplyAllRecursively(CVC4::SmtEngine &SMT, CVC4::Expr E) {
   
   return E;
 }
-
-  
+ 
 }
 #endif
