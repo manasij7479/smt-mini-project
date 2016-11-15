@@ -202,7 +202,11 @@ public:
   CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) {
     auto &EM = *SMT.getExprManager();
     std::string Name = LValue->getName();
-    CVC4::Expr boundVar = EM.mkBoundVar("boundVar_"+Name, Vars[Name].getType());
+    CVC4::Type T = EM.integerType();
+//     if (!Vars[Name].isNull()) {
+//       T = Vars[Name].getType(false);
+//     }
+    CVC4::Expr boundVar = EM.mkBoundVar("boundVar_"+Name, T);
     std::vector<CVC4::Expr> boundVars;
     boundVars.push_back(boundVar);
     CVC4::Expr boundVarList = EM.mkExpr(CVC4::kind::BOUND_VAR_LIST, boundVar);
@@ -212,7 +216,8 @@ public:
     CVC4::Expr predicate2 = Pre.substitute(LValue->Translate(EM, Vars), boundVar);
     CVC4::Expr predicate = EM.mkExpr(CVC4::Kind::AND, predicate1, predicate2);
     CVC4::Expr formula = EM.mkExpr(CVC4::Kind::EXISTS, boundVarList, predicate);
-    return SMT.doQuantifierElimination(formula, true);
+//     return SMT.doQuantifierElimination(formula, false);
+    return formula;
   }
   void dump(std::ostream &Out, int level) {
     tab(Out, level);
@@ -258,9 +263,13 @@ public:
       auto C = Condition->Translate(EM, Vars);
       auto TWP = TrueStmt->WeakestPrecondition(Post, SMT, Vars);
       auto FWP = FalseStmt->WeakestPrecondition(Post, SMT, Vars);
+
       if (SIMP_COND) {
-        auto R = SMT.query(TWP.iffExpr(FWP));
-        if (R.isValid())
+        if (SMT.query(C).isValid())
+          return TWP;
+        if (SMT.query(C.notExpr()).isValid())
+          return FWP;
+        if (SMT.query(TWP.iffExpr(FWP)).isValid())
           return TWP;
       }
       return C.impExpr(TWP).andExpr(C.notExpr().impExpr(FWP));
@@ -305,8 +314,6 @@ private:
   Stmt *Statement;
   Expr *Post;
 };
-
-
 
 }
 #endif

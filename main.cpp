@@ -4,9 +4,11 @@
 #include "AST.h"
 #include "Parser.h"
 #include "ExprSimplifier.h"
+#include "BVUnderApprox.h"
 using namespace mm;
 int main(int argc, char **argv) {
   std::string input;
+  std::set<std::string> ExtraArgs;
   if (argc > 1) {
     std::ifstream ifs(argv[1]);
     if (!ifs) {
@@ -15,7 +17,10 @@ int main(int argc, char **argv) {
     }
     input.assign( (std::istreambuf_iterator<char>(ifs) ),
                 (std::istreambuf_iterator<char>()) );
-    if (argc >= 3 && std::string(argv[2]) == "simplify")
+    for (int i = 2; i < argc; ++i) {
+      ExtraArgs.insert(argv[i]);
+    }
+    if (ExtraArgs.find("simplify") != ExtraArgs.end())
       SIMP_COND = true;
   }
   else {
@@ -39,63 +44,72 @@ int main(int argc, char **argv) {
   
   std::unordered_map<std::string, CVC4::Expr> SymbolTable;
   
-  CVC4::Expr Post = Prog->getPost()->Translate(em, SymbolTable);
-  CVC4::Expr WeakestPreCond  = Prog->getStatament()->WeakestPrecondition(Post, smt, SymbolTable);
-  
-  CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
+  if (ExtraArgs.find("wp") != ExtraArgs.end()) {
+    
+    CVC4::Expr Post = Prog->getPost()->Translate(em, SymbolTable);
+    CVC4::Expr WeakestPreCond  = Prog->getStatament()->WeakestPrecondition(Post, smt, SymbolTable);
+    
+    CVC4::Expr GivenPrecondition = Prog->getPre()->Translate(em, SymbolTable);
 
-  
-  if (SIMP_COND) {
-    WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
-  }
-  
-  CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
-   
-  std::cout << "Given Program : \n";
-  Prog->dump(std::cout);
-
-  std::cout << "\nWeakest Precondition : " 
-            << WeakestPreCond.toString() << std::endl;
-  std::cout << "TEST : " << Test.toString() << std::endl;
-  auto Result = smt.query(Test);
-  std::cout << "Result : " << Result << std::endl;
-
-  if (!Result.isValid()) {
-    std::cout << "Model : \n";
-    for (auto Var : SymbolTable) {
-      auto VarName = Var.first;
-      std::cout << VarName << '\t' <<
-        smt.getValue(Var.second).toString() << std::endl;
+    
+    if (SIMP_COND) {
+      WeakestPreCond = ApplyAllRecursively(smt, WeakestPreCond);
     }
+    
+    CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
+    
+  //   std::cout << "Given Program : \n";
+  //   Prog->dump(std::cout);
+
+    std::cout << "Weakest Precondition : " 
+              << WeakestPreCond.toString() << std::endl;
+    std::cout << "TEST : " << Test.toString() << std::endl;
+    CVC4::Result Result;
+    if (ExtraArgs.find("ua") == ExtraArgs.end()) {
+      Result = smt.query(Test);
+      if (!Result.isValid() ) {
+        std::cout << "Model : \n";
+        for (auto Var : SymbolTable) {
+          auto VarName = Var.first;
+          std::cout << VarName << '\t' <<
+          smt.getValue(Var.second).toString() << std::endl;
+        }
+      }
+    } else {
+      bool isExponential = ExtraArgs.find("linear") == ExtraArgs.end();
+      Result = BVWidthUnderApproxLoop(Test, smt, SymbolTable, isExponential);
+    }
+    std::cout << "Result : " << Result << std::endl;
   }
+  if (ExtraArgs.find("sp") != ExtraArgs.end()) {
+    CVC4::Expr Pre = Prog->getPre()->Translate(em, SymbolTable);
+    CVC4::Expr StrongestPostCond  = Prog->getStatament()->StrongestPostcondition(Pre, smt, SymbolTable);
+    
+    CVC4::Expr GivenPostcondition = Prog->getPost()->Translate(em, SymbolTable);
 
-  CVC4::Expr Pre = Prog->getPre()->Translate(em, SymbolTable);
-  CVC4::Expr StrongestPostCond  = Prog->getStatament()->StrongestPostcondition(Pre, smt, SymbolTable);
-  
-  CVC4::Expr GivenPostcondition = Prog->getPost()->Translate(em, SymbolTable);
+    
+    if (SIMP_COND) {
+      StrongestPostCond = ApplyAllRecursively(smt, StrongestPostCond);
+    }
+    
+    auto Test = em.mkExpr(CVC4::Kind::IMPLIES, StrongestPostCond, GivenPostcondition);
+    
+    std::cout << "Given Program : \n";
+    Prog->dump(std::cout);
 
-  
-  if (SIMP_COND) {
-    StrongestPostCond = ApplyAllRecursively(smt, StrongestPostCond);
-  }
-  
-  Test = em.mkExpr(CVC4::Kind::IMPLIES, StrongestPostCond, GivenPostcondition);
-   
-  std::cout << "Given Program : \n";
-  Prog->dump(std::cout);
+    std::cout << "\nStrongest Postcondition : " 
+              << StrongestPostCond.toString() << std::endl;
+    std::cout << "TEST : " << Test.toString() << std::endl;
+    auto Result = smt.query(Test);
+    std::cout << "Result : " << Result << std::endl;
 
-  std::cout << "\nStrongest Postcondition : " 
-            << StrongestPostCond.toString() << std::endl;
-  std::cout << "TEST : " << Test.toString() << std::endl;
-  Result = smt.query(Test);
-  std::cout << "Result : " << Result << std::endl;
-
-  if (!Result.isValid()) {
-    std::cout << "Model : \n";
-    for (auto Var : SymbolTable) {
-      auto VarName = Var.first;
-      std::cout << VarName << '\t' <<
-        smt.getValue(Var.second).toString() << std::endl;
+    if (!Result.isValid()) {
+      std::cout << "Model : \n";
+      for (auto Var : SymbolTable) {
+        auto VarName = Var.first;
+        std::cout << VarName << '\t' <<
+          smt.getValue(Var.second).toString() << std::endl;
+      }
     }
   }
 }

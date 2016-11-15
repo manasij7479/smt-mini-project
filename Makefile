@@ -1,5 +1,5 @@
 CXX:= g++
-CXXFLAGS :=-c -Wall -std=c++11 -g -Wno-deprecated
+CXXFLAGS :=-c -Wall -std=c++1y -g -Wno-deprecated
 LDFLAGS := -lpthread -lcvc4 -lgmp
 # Sources are all .cpp files in this dir
 SRCS :=         $(wildcard *.cpp)
