@@ -295,6 +295,26 @@ private:
   Stmt *FalseStmt;
 };
 
+class AssertStmt : public Stmt {
+public:
+  AssertStmt(Expr *Assertion) : Assertion(Assertion) {}
+  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) {
+    return Post.andExpr(Assertion->Translate(*SMT.getExprManager(), Vars));
+  }
+  
+  CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) {
+    return Pre.andExpr(Assertion->Translate(*SMT.getExprManager(), Vars));
+  }
+  
+  void dump(std::ostream &Out, int level) {
+    tab(Out, level);
+    Assertion->dump(Out);
+    Out << "\n";
+  }
+private:
+  Expr *Assertion;
+};
+
 class Program {
 public:
   Program (Expr *Pre, Stmt *Statement, Expr *Post)

@@ -294,8 +294,28 @@ Result ParseCondStmt(Stream in) {
   return ret;
 }
 
+Result ParseAssertStmt(Stream in) {
+  Stream Copy = in;
+  Result ret(nullptr, Copy, "");
+  
+  if (!in.fixed("assert:"))
+    return ret;
+  
+  Result Assert = ParseExpr(in);
+  if (!Assert.Ptr)
+    return ret;
+  in = Assert.Str;
+  
+  AssertStmt *result = new AssertStmt(Assert.getAs<Expr>());
+  
+  //   result->dump(std::cout);
+  ret.Ptr = result;
+  ret.Str = in;
+  return ret;
+}
+
 Result ParseStmt(Stream in) {
-  return Choice({ParseAssignStmt, ParseSeqStmt, ParseCondStmt})(in);
+  return Choice({ParseAssignStmt, ParseSeqStmt, ParseAssertStmt,  ParseCondStmt})(in);
 }
 
 Result ParseProgram(Stream in) {
