@@ -6,13 +6,17 @@
 #include <unordered_map>
 #include <cvc4/cvc4.h>
 #include <functional>
+#include "Summary.h"
 
 extern bool SIMP_COND; // TODO : Remove global
+namespace mm {
+class DefStmt;
+}
+std::unordered_map<std::string, mm::DefStmt *>& FDEFS();
 
 namespace mm {
 class Var;
 class Expr;
-typedef std::unordered_map<std::string, CVC4::Expr> Table;
 class Expr {
 public:
   virtual void dump(std::ostream &Out) {}
@@ -191,6 +195,7 @@ public:
   virtual CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) = 0;
   virtual CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) = 0;
   virtual void dump(std::ostream &Out, int level = 0) {}
+  virtual Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) = 0;
 };
 class AssignStmt : public  Stmt {
 public:
@@ -226,6 +231,13 @@ public:
     RValue->dump(Out);
     Out << " ;\n";
   }
+  Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
+//     dump(std::cout, 0);
+//     S.dump(std::cout);
+    S.substitute(LValue->getName(), RValue->Translate(*SMT.getExprManager(), Vars), Vars);
+//     S.dump(std::cout);
+    return S;
+  }
 private:
   Var *LValue;
   Expr *RValue;
@@ -251,6 +263,13 @@ public:
     return Cur;
   }
   void dump(std::ostream &Out, int level);
+  Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
+    for (auto It = Statements.rbegin(); It != Statements.rend(); ++It) {
+      Stmt *Statement = *It;
+      S = Statement->PropagateWPSummary(S, SMT, Vars);
+    }
+    return S;
+  }
 private:
   std::vector<Stmt *> Statements;
 };
@@ -289,6 +308,14 @@ public:
     }
   
   void dump(std::ostream &Out, int level);
+  Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
+    auto &EM = *SMT.getExprManager();
+    Summary T, F;
+    T = TrueStmt->PropagateWPSummary(T, SMT, Vars);
+    F = FalseStmt->PropagateWPSummary(F, SMT, Vars);
+    S.branch(Condition->Translate(EM, Vars), T, F, SMT, Vars);
+    return S;
+  }
 private:
   Expr *Condition;
   Stmt *TrueStmt;
@@ -311,8 +338,71 @@ public:
     Assertion->dump(Out);
     Out << "\n";
   }
+  Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
+    S.addPredicate(Assertion->Translate(*SMT.getExprManager(), Vars), SMT, Vars);
+    return S;
+  }
 private:
   Expr *Assertion;
+};
+
+class DefStmt : public Stmt {
+public:
+  DefStmt(std::string Name, Stmt *Body) : Name(Name), Body(Body) {}
+  
+  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) {
+    return Post;
+  }
+  
+  CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) {
+    return Pre;
+  }
+  void dump(std::ostream &Out, int level) {
+    tab(Out, level);
+    Out << "def: " << Name << "\n";
+    Body->dump(Out, level);
+//     Out << "\n";
+  }
+  Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
+    return S;
+  }
+  std::string getName() {
+    return Name;
+  }
+  Summary ComputeSummary(CVC4::SmtEngine &SMT, Table &Vars) {
+    Summary S;
+    return Body->PropagateWPSummary(S, SMT, Vars);
+  }
+  Stmt *getBody() {
+    return Body;
+  }
+private:
+  std::string Name;
+  Stmt *Body;
+};
+
+class CallStmt : public Stmt {
+public:
+  CallStmt(DefStmt *Func) : Func(Func) {}
+  CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) {
+    auto S = Func->ComputeSummary(SMT, Vars);
+    S.dump(std::cout);
+    auto result = S.apply(Post, Vars);
+    return result.andExpr(S.getPredicate(SMT));
+  }
+  
+  CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) {
+    return Pre; //TODO
+  }
+  void dump(std::ostream &Out, int level) {
+    tab(Out, level);
+    Out << "call: " << Func->getName() << "\n";
+  }
+  Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
+    return Func->getBody()->PropagateWPSummary(S, SMT, Vars);
+  }
+private:
+  DefStmt *Func;
 };
 
 class Program {

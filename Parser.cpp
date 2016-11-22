@@ -314,8 +314,57 @@ Result ParseAssertStmt(Stream in) {
   return ret;
 }
 
+Result ParseCallStmt(Stream in) {
+  Stream Copy = in;
+  Result ret(nullptr, Copy, "");
+  
+  if (!in.fixed("call:"))
+    return ret;
+  
+  Result Name = ParseVar(in);
+  if (!Name.Ptr)
+    return ret;
+  in = Name.Str;
+  
+  DefStmt *def = FDEFS()[Name.getAs<Var>()->getName()];
+  CallStmt *result = new CallStmt(def);
+  //   result->dump(std::cout);
+  ret.Ptr = result;
+  ret.Str = in;
+  return ret;
+}
+
+Result ParseDefStmt(Stream in) {
+  Stream Copy = in;
+  Result ret(nullptr, Copy, "");
+  
+  if (!in.fixed("def:"))
+    return ret;
+  
+  Result Name = ParseVar(in);
+  if (!Name.Ptr)
+    return ret;
+  in = Name.Str;
+  
+  Result Body = ParseStmt(in);
+  if (!Body.Ptr)
+    return ret;
+  in = Body.Str;
+  
+  std::string NameStr = Name.getAs<Var>()->getName();
+  
+  DefStmt *def = new DefStmt(NameStr, Body.getAs<Stmt>());
+  def->dump(std::cout, 0);
+  FDEFS()[NameStr] = def;
+  
+  //   result->dump(std::cout);
+  ret.Ptr = def;
+  ret.Str = in;
+  return ret;
+}
+
 Result ParseStmt(Stream in) {
-  return Choice({ParseAssignStmt, ParseSeqStmt, ParseAssertStmt,  ParseCondStmt})(in);
+  return Choice({ParseAssignStmt, ParseSeqStmt, ParseAssertStmt,  ParseCondStmt, ParseDefStmt, ParseCallStmt})(in);
 }
 
 Result ParseProgram(Stream in) {

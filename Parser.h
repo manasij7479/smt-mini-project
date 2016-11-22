@@ -19,6 +19,8 @@ Result ParseAssignStmt(Stream in);
 Result ParseSeqStmt(Stream in);
 Result ParseCondStmt(Stream in);
 Result ParseAssertStmt(Stream in);
+Result ParseDefStmt(Stream in);
+Result ParseCallStmt(Stream in);
 Result ParseStmt(Stream in);
 Result ParseProgram(Stream in);
 
