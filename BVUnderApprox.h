@@ -22,17 +22,19 @@ CVC4::Result BVWidthUnderApproxLoop(CVC4::Expr E, CVC4::SmtEngine &SMT, std::uno
   auto &EM = *SMT.getExprManager();
   CVC4::Result Result;
   auto bv32 = EM.mkBitVectorType(32);
-  while (CurW <= 32) {
+  while (CurW < 32) {
     auto TempExpr = E;
     std::set<CVC4::Expr> NewVars;
     for (auto Pair : Vars) {
       if (Pair.second.getType(false) == bv32) {
         auto NewVar = EM.mkVar(Pair.first + "_" + std::to_string(CurW),
                  EM.mkBitVectorType(CurW));
-        
+        unsigned int zero = 0; // because C++ template deduction weirdness
+        auto Zext = EM.mkConst(CVC4::BitVector(32-CurW, zero));
+        auto Sub = EM.mkExpr(CVC4::Kind::BITVECTOR_CONCAT, Zext, NewVar);
         TempExpr = TempExpr.substitute(
-          Pair.second, NewVar);
-        TempExpr = PostOrderTraversal(TempExpr, Curry(TruncateBVConst, SMT, CurW));
+          Pair.second, Sub);
+        //TempExpr = PostOrderTraversal(TempExpr, Curry(TruncateBVConst, SMT, CurW));
         NewVars.insert(NewVar);
       }
     }
