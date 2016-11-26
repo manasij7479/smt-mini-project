@@ -55,35 +55,9 @@ private:
   bool isNamePattern = false;
 };
 
-std::pair<CVC4::Expr, bool> PostOrderPatternMatch(CVC4::Expr E, Pattern P, Mutator F) {
-  auto EM = E.getExprManager();
-  auto Children = E.getChildren();
-  bool Changed = false;
-  for (auto &C : Children) {
-    bool ChangedLocal;
-    std::tie(C, ChangedLocal) = PostOrderPatternMatch(C, P, F);
-    Changed = Changed || ChangedLocal;
-  }
-  if (Changed && !Children.empty()) {
-    E = EM->mkExpr(E.getKind(), Children);
-  }
-  
-  if (P.Match(E)) {
-    return F(E);
-  }
-  else
-    return {E, Changed};
-}
-
-CVC4::Expr PostOrderKindMatch(CVC4::Expr E, CVC4::Kind K, Mutator F) {
-  Pattern P(K, {});
-  return PostOrderPatternMatch(E, P, F).first;
-}
-
-CVC4::Expr PostOrderTraversal(CVC4::Expr E, Mutator F) {
-  Pattern P; // Always passes
-  return PostOrderPatternMatch(E, P, F).first;
-}
+std::pair<CVC4::Expr, bool> PostOrderPatternMatch(CVC4::Expr E, Pattern P, Mutator F);
+CVC4::Expr PostOrderKindMatch(CVC4::Expr E, CVC4::Kind K, Mutator F);
+CVC4::Expr PostOrderTraversal(CVC4::Expr E, Mutator F);
 
 }
 #endif

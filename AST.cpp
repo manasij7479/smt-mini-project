@@ -4,6 +4,15 @@ std::unordered_map<std::string, mm::DefStmt *>& FDEFS() { //TODO : Remove global
   static std::unordered_map<std::string, mm::DefStmt *> FDEFS_;
   return FDEFS_;
 }
+std::unordered_map<std::string, mm::Summary>& SUMMARIES() {
+  static bool first = true;
+  static std::unordered_map<std::string, mm::Summary> *FOO;
+  if (first) {
+    first = false;
+    FOO = new std::unordered_map<std::string, mm::Summary>();
+  }
+  return *FOO;
+}
 namespace mm {
 CVC4::Expr BinaryExpr::Translate(CVC4::ExprManager &EM, std::unordered_map<std::string, CVC4::Expr> &VARS) {
   std::unordered_map<std::string, CVC4::Kind> Map = {

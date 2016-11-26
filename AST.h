@@ -13,7 +13,7 @@ namespace mm {
 class DefStmt;
 }
 std::unordered_map<std::string, mm::DefStmt *>& FDEFS();
-
+std::unordered_map<std::string, mm::Summary>& SUMMARIES();
 namespace mm {
 class Var;
 class Expr;
@@ -196,6 +196,7 @@ public:
   virtual CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) = 0;
   virtual void dump(std::ostream &Out, int level = 0) {}
   virtual Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) = 0;
+  virtual void AndAllAsserts(CVC4::Expr &Propagate,  CVC4::SmtEngine &SMT, Table &Vars) {}
 };
 class AssignStmt : public  Stmt {
 public:
@@ -232,10 +233,7 @@ public:
     Out << " ;\n";
   }
   Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
-//     dump(std::cout, 0);
-//     S.dump(std::cout);
     S.substitute(LValue->getName(), RValue->Translate(*SMT.getExprManager(), Vars), Vars);
-//     S.dump(std::cout);
     return S;
   }
 private:
@@ -252,6 +250,7 @@ public:
       Stmt *Statement = *It;
       Cur = Statement->WeakestPrecondition(Cur, SMT, Vars);
     }
+    
     return Cur;
   }
   CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) {
@@ -270,6 +269,11 @@ public:
     }
     return S;
   }
+  void AndAllAsserts(CVC4::Expr &Propagate,  CVC4::SmtEngine &SMT, Table &Vars) {
+    for (auto *Child : Statements) {
+      Child->AndAllAsserts(Propagate, SMT, Vars);
+    }
+  }
 private:
   std::vector<Stmt *> Statements;
 };
@@ -280,18 +284,44 @@ public:
     CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) {
       auto &EM = *SMT.getExprManager();
       auto C = Condition->Translate(EM, Vars);
-      auto TWP = TrueStmt->WeakestPrecondition(Post, SMT, Vars);
-      auto FWP = FalseStmt->WeakestPrecondition(Post, SMT, Vars);
 
+      auto TWP = [&]() {
+        static auto Result = TrueStmt->WeakestPrecondition(Post, SMT, Vars);
+        return Result;
+      };
+      auto FWP = [&]() {
+        static auto Result = FalseStmt->WeakestPrecondition(Post, SMT, Vars);
+        return Result;
+      };
+      // Above trick is for lazy evaluation.
+      // Works for most compilers in production but not guaranteed by the standard
+      // for lambda functions (IIRC).
+      
+      auto TAsserts = Post;
+      TrueStmt->AndAllAsserts(TAsserts, SMT, Vars);
+      auto FAsserts = Post;
+      FalseStmt->AndAllAsserts(FAsserts, SMT, Vars);
+      auto TValid = SMT.query(TAsserts).isValid();
+      auto FValid = SMT.query(FAsserts).isValid();
+      if (TValid) {
+        if (FValid) {
+          return SMT.getExprManager()->mkConst(true);
+        }
+        return FWP();
+      } else if (FValid) {
+        return TWP();
+      }
+      
       if (SIMP_COND) {
         if (SMT.query(C).isValid())
-          return TWP;
+          return TWP();
         if (SMT.query(C.notExpr()).isValid())
-          return FWP;
-        if (SMT.query(TWP.iffExpr(FWP)).isValid())
-          return TWP;
+          return FWP();
+        if (SMT.query(TWP().iffExpr(FWP())).isValid())
+          return TWP();
       }
-      return C.impExpr(TWP).andExpr(C.notExpr().impExpr(FWP));
+      
+      return C.impExpr(TWP()).andExpr(C.notExpr().impExpr(FWP()));
     }
 
     CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) {
@@ -316,6 +346,10 @@ public:
     S.branch(Condition->Translate(EM, Vars), T, F, SMT, Vars);
     return S;
   }
+  void AndAllAsserts(CVC4::Expr &Propagate,  CVC4::SmtEngine &SMT, Table &Vars) {
+    TrueStmt->AndAllAsserts(Propagate, SMT, Vars);
+    FalseStmt->AndAllAsserts(Propagate, SMT, Vars);
+  }
 private:
   Expr *Condition;
   Stmt *TrueStmt;
@@ -339,8 +373,12 @@ public:
     Out << "\n";
   }
   Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
-    S.addPredicate(Assertion->Translate(*SMT.getExprManager(), Vars), SMT, Vars);
+    auto E = /*S.apply(*/Assertion->Translate(*SMT.getExprManager(), Vars)/*, Vars)*/;
+    S.addPredicate(E, SMT, Vars);
     return S;
+  }
+  virtual void AndAllAsserts(CVC4::Expr &Propagate,  CVC4::SmtEngine &SMT, Table &Vars) {
+    Propagate = Propagate.andExpr(Assertion->Translate(*SMT.getExprManager(), Vars));
   }
 private:
   Expr *Assertion;
@@ -370,8 +408,13 @@ public:
     return Name;
   }
   Summary ComputeSummary(CVC4::SmtEngine &SMT, Table &Vars) {
-    Summary S;
-    return Body->PropagateWPSummary(S, SMT, Vars);
+    if (SUMMARIES().find(Name) == SUMMARIES().end()) {
+      Summary S;
+      SUMMARIES()[Name] = Body->PropagateWPSummary(S, SMT, Vars);
+      std::cout << "Summary for " << Name << std::endl;
+      SUMMARIES()[Name].dump(std::cout, SMT);
+    }
+    return SUMMARIES()[Name];
   }
   Stmt *getBody() {
     return Body;
@@ -386,9 +429,10 @@ public:
   CallStmt(DefStmt *Func) : Func(Func) {}
   CVC4::Expr WeakestPrecondition(CVC4::Expr Post, CVC4::SmtEngine &SMT, Table &Vars) {
     auto S = Func->ComputeSummary(SMT, Vars);
-    S.dump(std::cout);
     auto result = S.apply(Post, Vars);
-    return result.andExpr(S.getPredicate(SMT));
+    auto Pred = S.getPredicate(SMT);
+    auto E = result.andExpr(Pred);
+    return E;
   }
   
   CVC4::Expr StrongestPostcondition(CVC4::Expr Pre, CVC4::SmtEngine &SMT, Table &Vars) {
@@ -400,6 +444,9 @@ public:
   }
   Summary PropagateWPSummary(Summary S, CVC4::SmtEngine &SMT, Table &Vars) {
     return Func->getBody()->PropagateWPSummary(S, SMT, Vars);
+  }
+  void AndAllAsserts(CVC4::Expr &Propagate,  CVC4::SmtEngine &SMT, Table &Vars) {
+    Func->getBody()->AndAllAsserts(Propagate, SMT, Vars);
   }
 private:
   DefStmt *Func;

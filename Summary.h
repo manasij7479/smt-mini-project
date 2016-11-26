@@ -6,34 +6,38 @@ namespace mm {
   typedef std::unordered_map<std::string, CVC4::Expr> Table;
   class Summary {
   public:
-    void dump(std::ostream &Out) {
+    void dump(std::ostream &Out, CVC4::SmtEngine &SMT) {
       for (auto Pair : SMap) {
         Out << Pair.first << " -> " << Pair.second.toString() << std::endl;
       }
-      Out << "Pred : " << Predicate.toString() << std::endl;
+      Out << "Pred : " << getPredicate(SMT).toString() << std::endl << std::endl;
     }
     void substitute(std::string Var, CVC4::Expr E, Table &Vars) {
+//       std::cout << "HERE: " << Var << '\t' << E.toString()  << "\t" << Predicate.toString() << std::endl;
       if (SMap.find(Var) == SMap.end()) {
         SMap[Var] = Vars[Var];
       }
-      SMap[Var] =  SMap[Var].substitute(Vars[Var], E);
+//       SMap[Var] =  SMap[Var].substitute(Vars[Var], E);
+      for (auto Pair : SMap) {
+        SMap[Pair.first] = SMap[Pair.first].substitute(Vars[Var], E);
+      }
+      Predicate = Predicate.substitute(Vars[Var], E);
     }
     void addPredicate(CVC4::Expr E, CVC4::SmtEngine &SMT, Table &Vars) {
-      Predicate = getPredicate(SMT).andExpr(apply(E, Vars));
+//       Predicate = getPredicate(SMT).andExpr(apply(E, Vars));
+      Predicate = getPredicate(SMT).andExpr(E);
     }
     CVC4::Expr apply(CVC4::Expr E ,Table &Vars) {
-      auto Result = E;
+      std::vector<CVC4::Expr> Pre, Post;
       for (auto Pair : SMap) {
-        Result = Result.substitute(Vars[Pair.first], Pair.second);
+        Pre.push_back(Vars[Pair.first]);
+        Post.push_back(Pair.second);
       }
-      return Result;
+      return E.substitute(Pre, Post);
     }
-    CVC4::Expr getPredicate(CVC4::SmtEngine &SMT) {
-      if (Predicate.isNull())
-        return SMT.getExprManager()->mkConst(true);
-      return Predicate;
-    }
+    CVC4::Expr getPredicate(CVC4::SmtEngine &SMT);
     void branch(CVC4::Expr Cond, Summary T, Summary F, CVC4::SmtEngine &SMT, Table &Vars) {
+//       Cond = apply(Cond, Vars);
       Predicate = getPredicate(SMT).andExpr(Cond.impExpr(T.getPredicate(SMT)));
       Predicate = getPredicate(SMT).andExpr(Cond.notExpr().impExpr(F.getPredicate(SMT)));
       

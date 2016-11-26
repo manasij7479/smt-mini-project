@@ -2,10 +2,11 @@ pre: z == 6
 {
   def: foo {
     if (x >= 0) {
-      y = z;
     } else {
-      y = -z;
+      y = y - 1;
+      y = y + 1;
     }
+    y = y + 1;
   }
   call: foo
 }
