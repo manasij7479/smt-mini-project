@@ -16,6 +16,7 @@ std::pair<CVC4::Expr, bool> TruncateBVConst(CVC4::SmtEngine &SMT, size_t Width, 
     return {E, true};
   }
 }
+
 CVC4::Result BVWidthUnderApproxLoop(CVC4::Expr E, CVC4::SmtEngine &SMT, std::unordered_map<std::string,
                                     CVC4::Expr> Vars, bool isExponential = true) {
   size_t CurW = 1;

@@ -89,7 +89,15 @@ int main(int argc, char **argv) {
 
     
     if (SIMP_COND) {
-      StrongestPostCond = ApplyAllRecursively(smt, StrongestPostCond);
+      CVC4::Expr StrongestPostCondSimp = ApplyAllRecursively(smt, StrongestPostCond);
+      //check if simplified strongest postcondition is equisatisfiable as original sp
+      auto TestSimp = em.mkExpr(CVC4::Kind::IMPLIES, StrongestPostCondSimp, StrongestPostCond);
+      auto ResultSimp = smt.query(TestSimp);
+      std::cout << "Simplified sp => sp " << ResultSimp << std::endl;
+      TestSimp = em.mkExpr(CVC4::Kind::IMPLIES, StrongestPostCond, StrongestPostCondSimp);
+      ResultSimp = smt.query(TestSimp);
+      std::cout << "sp => Simplified sp " << ResultSimp << std::endl;  
+      StrongestPostCond = StrongestPostCondSimp; 
     }
     
     auto Test = em.mkExpr(CVC4::Kind::IMPLIES, StrongestPostCond, GivenPostcondition);
@@ -98,7 +106,7 @@ int main(int argc, char **argv) {
     Prog->dump(std::cout);
 
     std::cout << "\nStrongest Postcondition : " 
-              << StrongestPostCond.toString() << std::endl;
+              << StrongestPostCond << std::endl;
     std::cout << "TEST : " << Test.toString() << std::endl;
     auto Result = smt.query(Test);
     std::cout << "Result : " << Result << std::endl;
