@@ -216,7 +216,9 @@ public:
     CVC4::Expr predicate2 = Pre.substitute(LValue->Translate(EM, Vars), boundVar);
     CVC4::Expr predicate = EM.mkExpr(CVC4::Kind::AND, predicate1, predicate2);
     CVC4::Expr formula = EM.mkExpr(CVC4::Kind::EXISTS, boundVarList, predicate);
-    //return SMT.doQuantifierElimination(formula, false);
+    //std::cout << formula << std::endl;
+    //formula = SMT.doQuantifierElimination(formula, true, false);
+    //std::cout << formula << std::endl;
     return formula;
   }
   void dump(std::ostream &Out, int level) {

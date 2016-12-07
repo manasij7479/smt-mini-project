@@ -22,6 +22,9 @@ CVC4::Expr BinaryExpr::Translate(CVC4::ExprManager &EM, std::unordered_map<std::
     {"'>=", CVC4::Kind::BITVECTOR_UGE},
     {"'<", CVC4::Kind::BITVECTOR_ULT},
     {"'<=", CVC4::Kind::BITVECTOR_ULE},
+    {"'+", CVC4::Kind::BITVECTOR_PLUS},
+    {"'-", CVC4::Kind::BITVECTOR_SUB},
+    {"'*", CVC4::Kind::BITVECTOR_MULT},
   };
   return EM.mkExpr(Map[Op], Left->Translate(EM, VARS), Right->Translate(EM, VARS));
 }

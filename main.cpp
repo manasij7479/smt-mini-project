@@ -58,8 +58,6 @@ int main(int argc, char **argv) {
     
     CVC4::Expr Test = em.mkExpr(CVC4::Kind::IMPLIES, GivenPrecondition, WeakestPreCond);
     
-  //   std::cout << "Given Program : \n";
-  //   Prog->dump(std::cout);
 
     std::cout << "Weakest Precondition : " 
               << WeakestPreCond.toString() << std::endl;
@@ -68,6 +66,7 @@ int main(int argc, char **argv) {
     if (ExtraArgs.find("ua") == ExtraArgs.end()) {
       Result = smt.query(Test);
       if (!Result.isValid() ) {
+        std::cout << "Invalid" << std::endl;
         std::cout << "Model : \n";
         for (auto Var : SymbolTable) {
           auto VarName = Var.first;
@@ -78,8 +77,12 @@ int main(int argc, char **argv) {
     } else {
       bool isExponential = ExtraArgs.find("linear") == ExtraArgs.end();
       Result = BVWidthUnderApproxLoop(Test, smt, SymbolTable, isExponential);
+      if (Result.isValid()) {
+        std::cout << "Program is safe" << std::endl;
+      } else {
+        std::cout << "Program is unsafe" << std::endl;
+      }
     }
-    std::cout << "Result : " << Result << std::endl;
   }
   if (ExtraArgs.find("sp") != ExtraArgs.end()) {
     CVC4::Expr Pre = Prog->getPre()->Translate(em, SymbolTable);
@@ -106,18 +109,33 @@ int main(int argc, char **argv) {
     Prog->dump(std::cout);
 
     std::cout << "\nStrongest Postcondition : " 
-              << StrongestPostCond << std::endl;
+              << StrongestPostCond << std::endl << std::endl;
     std::cout << "TEST : " << Test.toString() << std::endl;
-    auto Result = smt.query(Test);
-    std::cout << "Result : " << Result << std::endl;
-
-    if (!Result.isValid()) {
-      std::cout << "Model : \n";
-      for (auto Var : SymbolTable) {
-        auto VarName = Var.first;
-        std::cout << VarName << '\t' <<
+    // auto Result = smt.query(Test);
+    // std::cout << "Result : " << Result << std::endl;
+    CVC4::Result Result;
+    if (ExtraArgs.find("ua") == ExtraArgs.end()) {
+      Result = smt.query(Test);
+      if (!Result.isValid() ) {
+        std::cout << "Invalid" << std::endl;
+        std::cout << "Model : \n";
+        for (auto Var : SymbolTable) {
+          auto VarName = Var.first;
+          std::cout << VarName << '\t' <<
           smt.getValue(Var.second).toString() << std::endl;
+        }
+      }
+    } else {
+      bool isExponential = ExtraArgs.find("linear") == ExtraArgs.end();
+      Result = BVWidthUnderApproxLoop(Test, smt, SymbolTable, isExponential);
+      if (Result.isValid()) {
+        std::cout << "Program is safe" << std::endl;
+      } else {
+        std::cout << "Program is unsafe" << std::endl;
       }
     }
   }
+
+  
+  return 0;
 }
